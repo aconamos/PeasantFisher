@@ -10,6 +10,7 @@
 #define BOT_ID 1326422681955991554
 #define YES_EMOJI "✅"
 #define NO_EMOJI "❌"
+#define VOTE_COUNT 5
 
 
 void 
@@ -67,9 +68,31 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
     if (!event->data || !event->data->options) return;
 
     if (strcmp(event->data->name, "yeet") == 0) {
+        /*
+        1. Push the message to chat
+        2. Add the time of yeet, message id, and user id to the array of active yeets (coming soon^tm)
+        3. Register a timer for x seconds out, it will run a function that either traverses the array of yeets and finds any expired or, if possible, just knows which one to do
+        */
         log_info("Yeet called!");
         char* user_id = event->data->options->array[0].value;
         printf("USER: %s\n", user_id);
+        
+        char* yeet_message;
+        asprintf(&yeet_message, 
+            "Do you want to yeet <@!%s>? (%d %s's needed)\n"
+            "Or, vote %s to yeet the author: <@!%ld>\n"
+            "\n"
+            "Otherwise, this will be deleted <idk some amount of seconds>\n"
+        , user_id, VOTE_COUNT, YES_EMOJI, NO_EMOJI, event->member->user->id);
+        struct discord_interaction_response params = {
+            .type = DISCORD_INTERACTION_CHANNEL_MESSAGE_WITH_SOURCE,
+            .data = &(struct discord_interaction_callback_data){
+                .content = yeet_message,
+            }
+        };
+        discord_create_interaction_response(client, event->id,
+                                              event->token, &params, NULL);
+        free(yeet_message);
     }
 }
 
