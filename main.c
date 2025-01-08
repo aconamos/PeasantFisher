@@ -62,8 +62,14 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
                                               event->token, &params, NULL);
     }
 
+    // -- DATA COMMANDS BELOW THIS LINE --
+    /* Return in case user input is missing for some reason */
+    if (!event->data || !event->data->options) return;
+
     if (strcmp(event->data->name, "yeet") == 0) {
         log_info("Yeet called!");
+        char* user_id = event->data->options->array[0].value;
+        printf("USER: %s\n", user_id);
     }
 }
 
