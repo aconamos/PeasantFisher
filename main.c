@@ -1,6 +1,10 @@
 #include <string.h>
 #include <assert.h>
-#include <discord.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "discord.h"
+#include "log.h"
 
 #define GUILD_ID 849505364764524565
 #define BOT_ID 1326422681955991554
@@ -48,34 +52,40 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
 {
     int emoji_id = event->emoji->id;
     char *name = event->emoji->name;
-    printf("EMOJI REACTED: %d, %s", emoji_id, name);
+    
+    char *str;
+    asprintf(&str, "EMOJI REACTED: %s", name);
+    log_info(str);
+    free(str);
 
     if (strcmp(name, YES_EMOJI) == 0) {
-        printf("YES!");
+        log_info("YES!");
     }
     else if (strcmp(name, NO_EMOJI) == 0) {
-        printf("NO!");
+        log_info("NO!");
     }
-    printf("\n");
-    fflush(stdout);
 }
 
 int main(int argc, char* argv[]) {
+    // Load config file
     const char *config_file;
     if (argc > 1)
         config_file = argv[1];
     else
         config_file = "./config.json";
     
+    // Initialize the client using some magic function calls
     ccord_global_init();
     struct discord *client = discord_config_init(config_file);
     assert(NULL != client && "Couldn't initialize client");
 
+    // Register events (I actually love the function reference style C uses)
     discord_set_on_ready(client, &on_ready);
     discord_set_on_interaction_create(client, &on_interaction);
     discord_set_on_message_reaction_add(client, &on_react);
-    discord_run(client);
 
+    // Run and wait for input?    
+    discord_run(client);
     fgetc(stdin);
 
     discord_cleanup(client);
