@@ -11,9 +11,11 @@
 #define YES_EMOJI "✅"
 #define NO_EMOJI "❌"
 
+
 void 
 on_ready(struct discord *client, const struct discord_ready *event) 
 {
+    // This ping command is probably going to stay a while for ensuring slash commands work.
     struct discord_create_guild_application_command params = {
         .name = "ping",
         .description = "Ping command!"
@@ -21,9 +23,23 @@ on_ready(struct discord *client, const struct discord_ready *event)
     discord_create_guild_application_command(client, event->application->id,
                                              GUILD_ID, &params, NULL);
 
+    struct discord_application_command_option options[] = {
+        {
+            .type = DISCORD_APPLICATION_OPTION_USER,
+            .name = "user",
+            .description = "Who to yeet",
+            .required = true
+        },
+    };
+
     struct discord_create_guild_application_command yeet_params = {
         .name = "yeet",
-        .description = "Yeet someone!"
+        .description = "Yeet someone!",
+        .options = 
+            &(struct discord_application_command_options) {
+                .size = sizeof(options) / sizeof *options,
+                .array = options,
+            },
     };
     discord_create_guild_application_command(client, event->application->id,
                                              GUILD_ID, &yeet_params, NULL);
@@ -45,6 +61,10 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
           discord_create_interaction_response(client, event->id,
                                               event->token, &params, NULL);
     }
+
+    if (strcmp(event->data->name, "yeet") == 0) {
+        log_info("Yeet called!");
+    }
 }
 
 void 
@@ -59,10 +79,10 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
     free(str);
 
     if (strcmp(name, YES_EMOJI) == 0) {
-        log_info("YES!");
+        log_debug("YES!");
     }
     else if (strcmp(name, NO_EMOJI) == 0) {
-        log_info("NO!");
+        log_debug("NO!");
     }
 }
 
