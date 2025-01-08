@@ -11,6 +11,7 @@
 #define YES_EMOJI "✅"
 #define NO_EMOJI "❌"
 #define VOTE_COUNT 5
+#define YEET_SECONDS 90
 
 
 void 
@@ -75,15 +76,15 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
         */
         log_info("Yeet called!");
         char* user_id = event->data->options->array[0].value;
-        printf("USER: %s\n", user_id);
-        
+
         char* yeet_message;
         asprintf(&yeet_message, 
             "Do you want to yeet <@!%s>? (%d %s's needed)\n"
             "Or, vote %s to yeet the author: <@!%ld>\n"
             "\n"
-            "Otherwise, this will be deleted <idk some amount of seconds>\n"
-        , user_id, VOTE_COUNT, YES_EMOJI, NO_EMOJI, event->member->user->id);
+            "Otherwise, this will be deleted <t:%ld:R>\n"
+        , user_id, VOTE_COUNT, YES_EMOJI, NO_EMOJI, event->member->user->id, time(NULL) + YEET_SECONDS);
+        
         struct discord_interaction_response params = {
             .type = DISCORD_INTERACTION_CHANNEL_MESSAGE_WITH_SOURCE,
             .data = &(struct discord_interaction_callback_data){
@@ -99,7 +100,6 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
 void 
 on_react(struct discord *client, const struct discord_message_reaction_add *event) 
 {
-    int emoji_id = event->emoji->id;
     char *name = event->emoji->name;
     
     char *str;
