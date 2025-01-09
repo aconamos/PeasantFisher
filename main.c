@@ -15,6 +15,23 @@
 
 
 void 
+cb_done_get(struct discord *client, struct discord_response *resp, const struct discord_message *ret) 
+{
+  discord_create_reaction(client, ret->channel_id, ret->id, 0, YES_EMOJI, NULL);
+  discord_create_reaction(client, ret->channel_id, ret->id, 0, NO_EMOJI, NULL);
+}
+
+void 
+cb_done(struct discord *client, struct discord_response *resp, const struct discord_interaction_response *ret) 
+{
+  const struct discord_interaction *event = resp->keep;
+
+  discord_get_original_interaction_response(client, BOT_ID, event->token, &(struct discord_ret_message) {
+    .done = cb_done_get,
+  });
+}
+
+void 
 on_ready(struct discord *client, const struct discord_ready *event) 
 {
     // This ping command is probably going to stay a while for ensuring slash commands work.
@@ -61,7 +78,10 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
                 }
           };
           discord_create_interaction_response(client, event->id,
-                                              event->token, &params, NULL);
+                                              event->token, &params, &(struct discord_ret_interaction_response) {
+                                                .keep = event,
+                                                .done = cb_done,
+                                             });
     }
 
     // -- DATA COMMANDS BELOW THIS LINE --
@@ -92,7 +112,10 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
             }
         };
         discord_create_interaction_response(client, event->id,
-                                              event->token, &params, NULL);
+                                              event->token, &params, &(struct discord_ret_interaction_response) {
+                                                .keep = event,
+                                                .done = cb_done,
+                                             });
         free(yeet_message);
     }
 }
