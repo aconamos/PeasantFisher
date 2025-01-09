@@ -1,10 +1,10 @@
 # This Makefile assumes the top folder has been built
-TOP = ./concord
+TOP = .
 CC ?= cc
 
-CORE_DIR      = $(TOP)/core
-INCLUDE_DIR   = $(TOP)/include
-GENCODECS_DIR = $(TOP)/gencodecs
+CORE_DIR      = $(TOP)/concord/core
+INCLUDE_DIR   = $(TOP)/concord/include
+GENCODECS_DIR = $(TOP)/concord/gencodecs
 
 STD_BOTS   = main
 VOICE_BOTS = 
@@ -13,7 +13,7 @@ BOTS += $(STD_BOTS)
 
 CFLAGS  += -O0 -g -pthread -Wall \
            -I$(INCLUDE_DIR) -I$(CORE_DIR) -I$(GENCODECS_DIR)
-LDFLAGS  = -L$(TOP)/lib
+LDFLAGS  = -L$(TOP)/concord/lib
 LDLIBS   = -ldiscord -lcurl
 
 all: $(BOTS)
