@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 
 #include "discord.h"
 #include "log.h"
@@ -14,9 +13,23 @@
 #define VOTE_COUNT 5
 #define YEET_SECONDS 90
 
+
+/**
+ * TODO
+ * - Global map to store active yeets
+ * - Reactions should trigger a query on the yeet
+ *      - If the reactions meet quota, it triggers a function to yeet, and then deletes the yeet? (I think this works? Do we need to keep track after?)
+ */
+
 struct message_identifier {
     u64snowflake message;
     u64snowflake channel;
+};
+
+struct yeet {
+    struct message_identifier id;
+    u64snowflake author;
+    u64snowflake victim;
 };
 
 void
@@ -28,23 +41,27 @@ murder_message(struct discord *client, struct discord_timer *timer)
 }
 
 void 
-react_cb_done_get(struct discord *client, struct discord_response *resp, const struct discord_message *ret) 
+init_react_cb_done_get(struct discord *client, struct discord_response *resp, const struct discord_message *ret) 
 {
     discord_create_reaction(client, ret->channel_id, ret->id, 0, YES_EMOJI, NULL);
     discord_create_reaction(client, ret->channel_id, ret->id, 0, NO_EMOJI, NULL);
+    // Let it be known, that here lies the very first call to malloc I have ever made.
+    // A monumental step in my CS career. I can only look back on my days of Java and think, "Wow. What a baby."
+    // Though I realize I am far from the adult; I am still but a toddler. Nonetheless, I manage memory.
+    // What a day.
     struct message_identifier *p_message_identifier = malloc(sizeof(struct message_identifier));
     p_message_identifier->channel = ret->channel_id;
     p_message_identifier->message = ret->id;
-    discord_timer(client, murder_message, NULL, p_message_identifier, 5000);
+    discord_timer(client, murder_message, NULL, p_message_identifier, YEET_SECONDS * 1000);
 }
 
 void 
-react_cb_done(struct discord *client, struct discord_response *resp, const struct discord_interaction_response *ret) 
+init_react_cb_done(struct discord *client, struct discord_response *resp, const struct discord_interaction_response *ret) 
 {
     const struct discord_interaction *event = resp->keep;
 
     discord_get_original_interaction_response(client, BOT_ID, event->token, &(struct discord_ret_message) {
-        .done = react_cb_done_get,
+        .done = init_react_cb_done_get,
     });
 }
 
@@ -97,7 +114,7 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
           discord_create_interaction_response(client, event->id,
                                               event->token, &params, &(struct discord_ret_interaction_response) {
                                                 .keep = event,
-                                                .done = react_cb_done,
+                                                .done = init_react_cb_done,
                                              });
     }
 
@@ -131,7 +148,7 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
         discord_create_interaction_response(client, event->id,
                                               event->token, &params, &(struct discord_ret_interaction_response) {
                                                 .keep = event,
-                                                .done = react_cb_done,
+                                                .done = init_react_cb_done,
                                              });
         free(yeet_message);
     }
@@ -141,6 +158,7 @@ void
 on_react(struct discord *client, const struct discord_message_reaction_add *event) 
 {
     char *name = event->emoji->name;
+    u64snowflake mid = event->message_id;
     
     char *str;
     asprintf(&str, "EMOJI REACTED: %s", name);
