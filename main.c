@@ -11,15 +11,20 @@
 #define BOT_ID 1326422681955991554
 #define YES_EMOJI "✅"
 #define NO_EMOJI "❌"
-#define VOTE_COUNT 5
+#define VOTE_COUNT 2
 #define YEET_SECONDS 90
+#define YEET_DURATION 10
 #define ACTIVE_YEETS_SIZE 20
+#define MAX_YEETS 3
 
 
 /**
  * TODO
  * - Reactions should trigger a query on the yeet
  *      - If the reactions meet quota, it triggers a function to yeet, and then deletes the yeet? (I think this works? Do we need to keep track after?)
+ * - Max yeets feature
+ *      - Use a discord timer to add one every hour
+ *      - Create the message for being out of yeets
  */
 
 struct yeet *active_yeets[ACTIVE_YEETS_SIZE]; // Just make an array that... should be big enough. If it crashes... oh well.
@@ -31,12 +36,18 @@ struct message_identifier {
 
 struct yeet {
     struct message_identifier m_id;
-    char *author;
-    char *token;
+    u64snowflake author;
     u64snowflake i_id;
     u64snowflake victim;
+    int y_reacts;
+    int x_reacts;
+    char *token;
 };
 
+/**
+ * This method take a message ID snowflake and returns the index of the active_yeets array that corresponds to the snowflake,
+ * if there are any. Returns -1 otherwise.
+ */
 int
 get_yeet_idx_by_id(u64snowflake message_id)
 {
@@ -51,6 +62,10 @@ get_yeet_idx_by_id(u64snowflake message_id)
     return ret;
 }
 
+/**
+ * This method take an interaction ID snowflake and returns the index of the active_yeets array that corresponds to the snowflake,
+ * if there are any. Returns -1 otherwise.
+ */
 int
 get_yeet_idx_by_token(u64snowflake interaction_id) 
 {
@@ -65,6 +80,9 @@ get_yeet_idx_by_token(u64snowflake interaction_id)
     return ret;
 }
 
+/**
+ * This method returns the index of the first null pointer in the active_yeets array.
+ */
 int
 get_first_null()
 {
@@ -75,10 +93,51 @@ get_first_null()
 }
 
 void
+get_users_done_x_done(struct discord *client, struct discord_response *resp, const struct discord_guild_member *ret)
+{
+    log_debug("%ld", ret->communication_disabled_until);
+} 
+
+void
+get_users_done_x(struct discord *client, struct discord_response *resp, const struct discord_users *ret) 
+{
+    struct yeet *yeet = resp->data;
+    yeet->x_reacts = ret->size;
+    log_debug("AMOUNT OF NO REACTS: %d", yeet->x_reacts);
+
+    if (yeet->x_reacts >= VOTE_COUNT) {
+        discord_modify_guild_member(client, GUILD_ID, yeet->author, &(struct discord_modify_guild_member) {
+            .communication_disabled_until = (u64unix_ms)((time(NULL) + YEET_DURATION)* 1000), // This needs an extra *1000 because for some reason discord's timestamps have extra precision. /shrug
+        }, &(struct discord_ret_guild_member) {
+            .done = get_users_done_x_done,
+        });
+        // TODO: Should make the edit message a callback in case of failure or whatnot
+    }
+    // Saving this for later
+    discord_edit_followup_message(client, BOT_ID, yeet->token, yeet->m_id.message, &(struct discord_edit_followup_message) {
+        .content = "User Yeeted",
+        // TODO: Create another followup, not just edit
+    }, NULL);
+}
+
+void
+get_users_done_y(struct discord *client, struct discord_response *resp, const struct discord_users *ret) 
+{
+    struct yeet *yeet = resp->data;
+    yeet->y_reacts = ret->size;
+    log_debug("AMOUNT OF YES REACTS: %d", yeet->y_reacts);
+}
+
+/**
+ * This callback serves to delete a message and, if necessary, remove the corresponding yeet
+ * from the list of active yeets. It is called from a discord timer.
+ */
+void
 murder_message(struct discord *client, struct discord_timer *timer)
 {
     // Delete the message
     struct message_identifier *data = (timer->data);
+    // TODO: Only make this call if the yeet hasn't passed
     discord_delete_message(client, data->channel, data->message, NULL, NULL);
 
     // At this point, the yeet could either still be pending decision or decided. 
@@ -95,6 +154,10 @@ murder_message(struct discord *client, struct discord_timer *timer)
     free(data);
 }
 
+/**
+ * This callback serves to finish constructing yeet data and start the timer to delete it.
+ * It is the last call to construct the yeet following the initial reaction from the bot.
+ */
 void 
 init_react_cb_done_get(struct discord *client, struct discord_response *resp, const struct discord_message *ret) 
 {
@@ -109,6 +172,8 @@ init_react_cb_done_get(struct discord *client, struct discord_response *resp, co
     struct message_identifier *p_message_identifier = malloc(sizeof(struct message_identifier));
     p_message_identifier->channel = ret->channel_id;
     p_message_identifier->message = ret->id;
+    log_debug("Timestamp of the yeet message: %ld", ret->timestamp);
+    log_debug("Time from sys: %ld", time(NULL));
 
     log_debug("Interaction ID (CB): %ld", ret->interaction->id);
     int idx = get_yeet_idx_by_token(ret->interaction->id);
@@ -118,6 +183,10 @@ init_react_cb_done_get(struct discord *client, struct discord_response *resp, co
     discord_timer(client, murder_message, NULL, p_message_identifier, YEET_SECONDS * 1000);
 }
 
+/**
+ * This callback serves to call the other, more useful callback.
+ * I'm not sure why it's required; I copied it from somewhere.
+ */
 void 
 init_react_cb_done(struct discord *client, struct discord_response *resp, const struct discord_interaction_response *ret) 
 {
@@ -128,6 +197,9 @@ init_react_cb_done(struct discord *client, struct discord_response *resp, const 
     });
 }
 
+/**
+ * This serves to build the application commands necessary for the bot to function.
+ */
 void 
 on_ready(struct discord *client, const struct discord_ready *event) 
 {
@@ -187,7 +259,7 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
 
     if (strcmp(event->data->name, "yeet") == 0) {
         log_info("Yeet called!");
-        char* author_id = event->data->options->array[0].value;
+        u64snowflake victim_id = (u64snowflake)event->data->options->array[0].value;
 
         // Format message
         char* yeet_message;
@@ -196,17 +268,18 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
             "Or, vote %s to yeet the author: <@!%ld>\n"
             "\n"
             "Otherwise, this will be deleted <t:%ld:R>\n"
-        , author_id, VOTE_COUNT, YES_EMOJI, NO_EMOJI, event->member->user->id, time(NULL) + YEET_SECONDS);
+        , victim_id, VOTE_COUNT, YES_EMOJI, NO_EMOJI, event->member->user->id, time(NULL) + YEET_SECONDS);
         
         // Build yeet
         int free_yeet_idx = get_first_null(); // This doesn't check for the -1 case. That's because if we reach it, we're fucked anyways. Crashing is the best behavior then.
         struct yeet *free_yeet = malloc(sizeof(struct yeet));
         active_yeets[free_yeet_idx] = free_yeet;
 
-        log_debug("%ld", event->id);
+        log_debug("Event ID: %ld", event->id);
         free_yeet->i_id = event->id;
-        free_yeet->victim = event->member->user->id;
-        free_yeet->author = author_id; //TODO we need to copy this because it's a char* for whatever reason even when it could just be a regular snowflake ID 
+        free_yeet->author = event->member->user->id;
+        free_yeet->victim = victim_id;
+        log_debug("AUTHOR ID: %ld", event->member->user->id);
         log_debug("Pre strcpy");
         free_yeet->token = malloc(strlen(event->token));
         strcpy(free_yeet->token, event->token);
@@ -225,10 +298,13 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
                                                 .done = init_react_cb_done,
                                              });
         free(yeet_message);
-
     }
 }
 
+/**
+ * This is the callback for when any message is reacted to. If the message reacted to has a corresponding yeet in the array,
+ * it make a couple calls to the discord API to count reactions and then react accordingly.
+ */
 void 
 on_react(struct discord *client, const struct discord_message_reaction_add *event) 
 {
@@ -236,6 +312,7 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
 
     char *name = event->emoji->name;
     u64snowflake m_id = event->message_id;
+    u64snowflake c_id = event->channel_id;
     
     int idx = get_yeet_idx_by_id(m_id);
     if (idx == -1) return;
@@ -254,9 +331,18 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
     }
 
     log_debug("TOKEN %s / MESSAGE_ID %ld", yeet->token, yeet->m_id.message);
-    discord_edit_followup_message(client, BOT_ID, yeet->token, yeet->m_id.message, &(struct discord_edit_followup_message) {
-        .content = "Message fuckin EDITED!!!!",
-    }, NULL);
+
+    discord_get_reactions(client, c_id, m_id, 0, YES_EMOJI, NULL, &(struct discord_ret_users) {
+        .done = get_users_done_y,
+        .data = yeet,
+        .keep = event,
+    });
+    discord_get_reactions(client, c_id, m_id, 0, NO_EMOJI, NULL, &(struct discord_ret_users) {
+        .done = get_users_done_x,
+        .data = yeet,
+        .keep = event,
+    });
+
 }
 
 int main(int argc, char* argv[]) {
