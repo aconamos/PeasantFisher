@@ -13,7 +13,7 @@
 #define NO_EMOJI "❌"
 #define VOTE_COUNT 2
 #define YEET_SECONDS 90
-#define YEET_DURATION 10
+#define YEET_DURATION 30
 #define ACTIVE_YEETS_SIZE 20
 #define MAX_YEETS 3
 
@@ -42,6 +42,11 @@ struct yeet {
     int y_reacts;
     int x_reacts;
     char *token;
+};
+
+struct yeet_with_users {
+    struct yeet *yeet;
+    struct discord_users users;
 };
 
 /**
@@ -96,7 +101,19 @@ void
 get_users_done_x_done(struct discord *client, struct discord_response *resp, const struct discord_guild_member *ret)
 {
     log_debug("%ld", ret->communication_disabled_until);
-} 
+}
+
+void 
+timeout_fail(struct discord *client, struct discord_response *resp)
+{
+
+}
+
+void 
+timeout_succ(struct discord *client, struct discord_response *resp, const struct discord_guild_member *ret)
+{
+    
+}
 
 void
 get_users_done_x(struct discord *client, struct discord_response *resp, const struct discord_users *ret) 
@@ -109,15 +126,17 @@ get_users_done_x(struct discord *client, struct discord_response *resp, const st
         discord_modify_guild_member(client, GUILD_ID, yeet->author, &(struct discord_modify_guild_member) {
             .communication_disabled_until = (u64unix_ms)((time(NULL) + YEET_DURATION)* 1000), // This needs an extra *1000 because for some reason discord's timestamps have extra precision. /shrug
         }, &(struct discord_ret_guild_member) {
-            .done = get_users_done_x_done,
+            .done = get_users_done_x_done, // User <target> was yeeted! Yeets: <users>
+            // .fail = send_message ("Sorry <users>! I couldn't yeet <target>. Publicly shame them instead."),
+            .data = yeet,
         });
         // TODO: Should make the edit message a callback in case of failure or whatnot
     }
     // Saving this for later
-    discord_edit_followup_message(client, BOT_ID, yeet->token, yeet->m_id.message, &(struct discord_edit_followup_message) {
-        .content = "User Yeeted",
-        // TODO: Create another followup, not just edit
-    }, NULL);
+    // discord_edit_followup_message(client, BOT_ID, yeet->token, yeet->m_id.message, &(struct discord_edit_followup_message) {
+    //     .content = "User Yeeted",
+    //     // TODO: Create another followup, not just edit
+    // }, NULL);
 }
 
 void
@@ -126,6 +145,22 @@ get_users_done_y(struct discord *client, struct discord_response *resp, const st
     struct yeet *yeet = resp->data;
     yeet->y_reacts = ret->size;
     log_debug("AMOUNT OF YES REACTS: %d", yeet->y_reacts);
+
+    if (yeet->y_reacts >= VOTE_COUNT) {
+        log_debug("VICTIM BEING YEETED!: %ld", yeet->victim);
+        discord_modify_guild_member(client, GUILD_ID, yeet->victim, &(struct discord_modify_guild_member) {
+            .communication_disabled_until = (u64unix_ms)((time(NULL) + YEET_DURATION)* 1000), // This needs an extra *1000 because for some reason discord's timestamps have extra precision. /shrug
+        }, &(struct discord_ret_guild_member) {
+            .done = get_users_done_x_done,
+            //.fail = send_message ("Sorry <users>! I couldn't yeet <target>. Publicly shame them instead.")
+        });
+        // TODO: Should make the edit message a callback in case of failure or whatnot
+    }
+    // Saving this for later
+    // discord_edit_followup_message(client, BOT_ID, yeet->token, yeet->m_id.message, &(struct discord_edit_followup_message) {
+    //     .content = "User Yeeted",
+    //     // TODO: Create another followup, not just edit
+    // }, NULL);
 }
 
 /**
@@ -180,6 +215,8 @@ init_react_cb_done_get(struct discord *client, struct discord_response *resp, co
     struct yeet *yeet = active_yeets[idx];
     yeet->m_id.channel = ret->channel_id;
     yeet->m_id.message = ret->id;
+    // TODO: Send the actual yeet* over to the timer callback to gather it all in one place
+    // Hopefully that will also allow me to make use of concord's built in cleanup functionality
     discord_timer(client, murder_message, NULL, p_message_identifier, YEET_SECONDS * 1000);
 }
 
@@ -259,12 +296,12 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
 
     if (strcmp(event->data->name, "yeet") == 0) {
         log_info("Yeet called!");
-        u64snowflake victim_id = (u64snowflake)event->data->options->array[0].value;
+        u64snowflake victim_id = strtoul(event->data->options->array[0].value, NULL, 10);
 
         // Format message
         char* yeet_message;
         asprintf(&yeet_message, 
-            "Do you want to yeet <@!%s>? (%d %s's needed)\n"
+            "Do you want to yeet <@!%ld>? (%d %s's needed)\n"
             "Or, vote %s to yeet the author: <@!%ld>\n"
             "\n"
             "Otherwise, this will be deleted <t:%ld:R>\n"
