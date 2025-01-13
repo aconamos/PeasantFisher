@@ -47,8 +47,7 @@ struct yeet {
 
 struct yeet_with_users {
     struct yeet *yeet;
-    char *msg;
-    int backfire;
+    char *users_msg;
 };
 
 struct get_reactions_params {
@@ -107,6 +106,7 @@ get_first_null()
 void 
 yeet_fail(struct discord *client, struct discord_response *resp)
 {
+    log_debug("yeet_fail called!");
     struct yeet_with_users *yww_data = resp->data;
     struct yeet *yeet = yww_data->yeet;
     discord_delete_message(client, yeet->m_id.channel, yeet->m_id.message, NULL, NULL);
@@ -114,7 +114,7 @@ yeet_fail(struct discord *client, struct discord_response *resp)
         .content = "Yeet failed!",
     }, NULL);
 
-    free(yww_data->msg);
+    free(yww_data->users_msg);
     free(yww_data);
     yww_data = NULL;
 }
@@ -122,15 +122,21 @@ yeet_fail(struct discord *client, struct discord_response *resp)
 void 
 yeet_succ(struct discord *client, struct discord_response *resp, const struct discord_guild_member *ret)
 {
+    log_debug("yeet_succ called!");
     struct yeet_with_users *yww_data = resp->data;
     struct yeet *yeet = yww_data->yeet;
+
+    char *yeet_msg = malloc(2000); // TODO get an exact size
+    const char *yeet_msg_fmt = "User <@!%ld> yeeted in %f seconds!\nBrought to you by %s";
+    cog_asprintf(&yeet_msg, yeet_msg_fmt, yeet->victim, -6.9f, yww_data->users_msg);
+
     discord_delete_message(client, yeet->m_id.channel, yeet->m_id.message, NULL, NULL);
     discord_create_message(client, yeet->m_id.channel, &(struct discord_create_message) {
-        .content = yww_data->msg,
+        .content = yeet_msg,
     }, NULL); // TODO: They will return in + callback
     // TODO: Should make the edit message a callback in case of failure or whatnot
 
-    free(yww_data->msg);
+    free(yww_data->users_msg);
     free(yww_data);
     yww_data = NULL;
     // TODO: Does the yeet ptr need to be freed at this point? I think we might be able to keep it.
@@ -162,28 +168,24 @@ get_users_done(struct discord *client, struct discord_response *resp, const stru
     log_debug("TARGET BEING YEETED: %ld", target);
     log_debug("WAS BACKFIRE? %d", is_backfire);
     log_debug("USERS SIZE: %ld", ret->size);
-    
-    const char *yeet_msg_fmt = "User <@!%ld> yeeted in %f seconds!\nBrought to you by %s";
-    char *_fstr = malloc(25);
-    char *yeet_msg = malloc(2000); // TODO get an exact size
-    char list[2000] = ""; // I wish I could use a variable size here, but it gives me an error.
 
+    // Build the list of users string.
+    char *list = calloc(2000, 1);
+    char *_fstr = malloc(25);
     for (int i = 0; i < ret->size; i++) {
         cog_asprintf(&_fstr, "<@!%ld> ", ret->array[i].id);
         strcat(list, _fstr);
     }
-
-    cog_asprintf(&yeet_msg, yeet_msg_fmt, yeet->victim, -6.9f, list);
-
-    // free(list);
     free(_fstr);
+    
+
 
     // For some reason, we gotta use heap memory here. 
     struct yeet_with_users *data = malloc(sizeof(struct yeet_with_users));
-    data->msg = yeet_msg;
+    data->users_msg = list;
     data->yeet = yeet;
 
-    discord_modify_guild_member(client, GUILD_ID, yeet->victim, &(struct discord_modify_guild_member) {
+    discord_modify_guild_member(client, GUILD_ID, target, &(struct discord_modify_guild_member) {
         .communication_disabled_until = (u64unix_ms)((time(NULL) + YEET_DURATION)* 1000), // This needs an extra *1000 because for some reason discord's timestamps have extra precision. /shrug
     }, &(struct discord_ret_guild_member) {
         .done = yeet_succ,
