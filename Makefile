@@ -11,8 +11,14 @@ VOICE_BOTS =
 
 BOTS += $(STD_BOTS)
 
-CFLAGS  += -O0 -g -pthread -Wall \
+CFLAGS  += -O0 -g -pthread \
            -I$(INCLUDE_DIR) -I$(CORE_DIR) -I$(GENCODECS_DIR)
+
+CFLAGS += -std=c99 
+CFLAGS += -Wpedantic
+CFLAGS += -Wall
+CFLAGS += -Wwrite-strings
+
 LDFLAGS  = -L$(TOP)/concord/lib
 LDLIBS   = -ldiscord -lcurl
 
