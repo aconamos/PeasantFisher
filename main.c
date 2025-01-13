@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include "discord.h"
 #include "log.h"
@@ -37,8 +38,8 @@ struct message_identifier {
 struct yeet {
     struct message_identifier m_id;
     u64snowflake author;
-    u64snowflake i_id;
     u64snowflake victim;
+    u64snowflake i_id;
     int y_reacts;
     int x_reacts;
     char *token;
@@ -46,7 +47,13 @@ struct yeet {
 
 struct yeet_with_users {
     struct yeet *yeet;
-    struct discord_users users;
+    char *msg;
+    int backfire;
+};
+
+struct get_reactions_params {
+    struct yeet *yeet;
+    char *emoji;
 };
 
 /**
@@ -97,65 +104,95 @@ get_first_null()
     return -1; // God I hope we never reach this
 }
 
+void 
+yeet_fail(struct discord *client, struct discord_response *resp)
+{
+    struct yeet_with_users *yww_data = resp->data;
+    struct yeet *yeet = yww_data->yeet;
+    discord_delete_message(client, yeet->m_id.channel, yeet->m_id.message, NULL, NULL);
+    discord_create_message(client, yeet->m_id.channel, &(struct discord_create_message) {
+        .content = "Yeet failed!",
+    }, NULL);
+
+    free(yww_data->msg);
+    free(yww_data);
+    yww_data = NULL;
+}
+
+void 
+yeet_succ(struct discord *client, struct discord_response *resp, const struct discord_guild_member *ret)
+{
+    struct yeet_with_users *yww_data = resp->data;
+    struct yeet *yeet = yww_data->yeet;
+    discord_delete_message(client, yeet->m_id.channel, yeet->m_id.message, NULL, NULL);
+    discord_create_message(client, yeet->m_id.channel, &(struct discord_create_message) {
+        .content = yww_data->msg,
+    }, NULL); // TODO: They will return in + callback
+    // TODO: Should make the edit message a callback in case of failure or whatnot
+
+    free(yww_data->msg);
+    free(yww_data);
+    yww_data = NULL;
+    // TODO: Does the yeet ptr need to be freed at this point? I think we might be able to keep it.
+}
+
 void
-get_users_done_x_done(struct discord *client, struct discord_response *resp, const struct discord_guild_member *ret)
+get_users_done(struct discord *client, struct discord_response *resp, const struct discord_users *ret) 
 {
-    log_debug("%ld", ret->communication_disabled_until);
-}
+    struct get_reactions_params *params = resp->data;
+    char *emoji = params->emoji;
+    struct yeet *yeet = params->yeet;
+    int is_backfire = 0;
+    u64snowflake target;
 
-void 
-timeout_fail(struct discord *client, struct discord_response *resp)
-{
+    if (strcmp(emoji, YES_EMOJI) == 0) {
+        yeet->y_reacts = ret->size;
+        is_backfire = ret->size;
+    }
+    else if (strcmp(emoji, NO_EMOJI) == 0) {
+        yeet->x_reacts = ret->size;
+        is_backfire = -ret->size;
+    }
 
-}
-
-void 
-timeout_succ(struct discord *client, struct discord_response *resp, const struct discord_guild_member *ret)
-{
+    if (abs(is_backfire) < VOTE_COUNT) return;
+    if (is_backfire > 0) target = yeet->victim;
+    else target = yeet->author;
+    // TODO: There's some duplicated logic above here that could use a trim
     
-}
+    log_debug("TARGET BEING YEETED: %ld", target);
+    log_debug("WAS BACKFIRE? %d", is_backfire);
+    log_debug("USERS SIZE: %ld", ret->size);
+    
+    const char *yeet_msg_fmt = "User <@!%ld> yeeted in %f seconds!\nBrought to you by %s";
+    char *_fstr = malloc(25);
+    char *yeet_msg = malloc(2000); // TODO get an exact size
+    char list[2000] = ""; // I wish I could use a variable size here, but it gives me an error.
 
-void
-get_users_done_x(struct discord *client, struct discord_response *resp, const struct discord_users *ret) 
-{
-    struct yeet *yeet = resp->data;
-    yeet->x_reacts = ret->size;
-    log_debug("AMOUNT OF NO REACTS: %d", yeet->x_reacts);
-
-    if (yeet->x_reacts >= VOTE_COUNT) {
-        discord_modify_guild_member(client, GUILD_ID, yeet->author, &(struct discord_modify_guild_member) {
-            .communication_disabled_until = (u64unix_ms)((time(NULL) + YEET_DURATION)* 1000), // This needs an extra *1000 because for some reason discord's timestamps have extra precision. /shrug
-        }, &(struct discord_ret_guild_member) {
-            .done = get_users_done_x_done, // User <target> was yeeted! Yeets: <users>
-            // .fail = send_message ("Sorry <users>! I couldn't yeet <target>. Publicly shame them instead."),
-            .data = yeet,
-        });
-        // TODO: Should make the edit message a callback in case of failure or whatnot
+    for (int i = 0; i < ret->size; i++) {
+        cog_asprintf(&_fstr, "<@!%ld> ", ret->array[i].id);
+        strcat(list, _fstr);
     }
-    // Saving this for later
-    // discord_edit_followup_message(client, BOT_ID, yeet->token, yeet->m_id.message, &(struct discord_edit_followup_message) {
-    //     .content = "User Yeeted",
-    //     // TODO: Create another followup, not just edit
-    // }, NULL);
-}
 
-void
-get_users_done_y(struct discord *client, struct discord_response *resp, const struct discord_users *ret) 
-{
-    struct yeet *yeet = resp->data;
-    yeet->y_reacts = ret->size;
-    log_debug("AMOUNT OF YES REACTS: %d", yeet->y_reacts);
+    cog_asprintf(&yeet_msg, yeet_msg_fmt, yeet->victim, -6.9f, list);
 
-    if (yeet->y_reacts >= VOTE_COUNT) {
-        log_debug("VICTIM BEING YEETED!: %ld", yeet->victim);
-        discord_modify_guild_member(client, GUILD_ID, yeet->victim, &(struct discord_modify_guild_member) {
-            .communication_disabled_until = (u64unix_ms)((time(NULL) + YEET_DURATION)* 1000), // This needs an extra *1000 because for some reason discord's timestamps have extra precision. /shrug
-        }, &(struct discord_ret_guild_member) {
-            .done = get_users_done_x_done,
-            //.fail = send_message ("Sorry <users>! I couldn't yeet <target>. Publicly shame them instead.")
-        });
-        // TODO: Should make the edit message a callback in case of failure or whatnot
-    }
+    // free(list);
+    free(_fstr);
+
+    // For some reason, we gotta use heap memory here. 
+    struct yeet_with_users *data = malloc(sizeof(struct yeet_with_users));
+    data->msg = yeet_msg;
+    data->yeet = yeet;
+
+    discord_modify_guild_member(client, GUILD_ID, yeet->victim, &(struct discord_modify_guild_member) {
+        .communication_disabled_until = (u64unix_ms)((time(NULL) + YEET_DURATION)* 1000), // This needs an extra *1000 because for some reason discord's timestamps have extra precision. /shrug
+    }, &(struct discord_ret_guild_member) {
+        .done = yeet_succ,
+        .fail = yeet_fail,
+        .data = data,
+    });
+
+    free(resp->data);
+    
     // Saving this for later
     // discord_edit_followup_message(client, BOT_ID, yeet->token, yeet->m_id.message, &(struct discord_edit_followup_message) {
     //     .content = "User Yeeted",
@@ -300,7 +337,7 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
 
         // Format message
         char* yeet_message;
-        asprintf(&yeet_message, 
+        cog_asprintf(&yeet_message, 
             "Do you want to yeet <@!%ld>? (%d %s's needed)\n"
             "Or, vote %s to yeet the author: <@!%ld>\n"
             "\n"
@@ -312,16 +349,11 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
         struct yeet *free_yeet = malloc(sizeof(struct yeet));
         active_yeets[free_yeet_idx] = free_yeet;
 
-        log_debug("Event ID: %ld", event->id);
         free_yeet->i_id = event->id;
         free_yeet->author = event->member->user->id;
         free_yeet->victim = victim_id;
-        log_debug("AUTHOR ID: %ld", event->member->user->id);
-        log_debug("Pre strcpy");
         free_yeet->token = malloc(strlen(event->token));
         strcpy(free_yeet->token, event->token);
-        log_debug("Post strcpy");
-        log_debug("free_yeet token: %s", event->token);
 
         struct discord_interaction_response params = {
             .type = DISCORD_INTERACTION_CHANNEL_MESSAGE_WITH_SOURCE,
@@ -351,33 +383,35 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
     u64snowflake m_id = event->message_id;
     u64snowflake c_id = event->channel_id;
     
+    // Check to make sure we're not doing yeet things on a non-yeet message
     int idx = get_yeet_idx_by_id(m_id);
     if (idx == -1) return;
+
     struct yeet *yeet = active_yeets[idx];
     
     char *str;
-    asprintf(&str, "EMOJI REACTED: %s", name);
+    cog_asprintf(&str, "EMOJI REACTED: %s", name);
     log_info(str);
     free(str);
 
-    if (strcmp(name, YES_EMOJI) == 0) {
-        log_debug("YES!");
-    }
-    else if (strcmp(name, NO_EMOJI) == 0) {
-        log_debug("NO!");
-    }
-
     log_debug("TOKEN %s / MESSAGE_ID %ld", yeet->token, yeet->m_id.message);
 
+    struct get_reactions_params *yes_params = malloc(sizeof(struct get_reactions_params));
+    struct get_reactions_params *no_params = malloc(sizeof(struct get_reactions_params));
+    yes_params->yeet = yeet;
+    no_params->yeet = yeet;
+    yes_params->emoji = YES_EMOJI;
+    no_params->emoji = NO_EMOJI;
+
     discord_get_reactions(client, c_id, m_id, 0, YES_EMOJI, NULL, &(struct discord_ret_users) {
-        .done = get_users_done_y,
-        .data = yeet,
+        .done = get_users_done,
         .keep = event,
+        .data = yes_params,
     });
     discord_get_reactions(client, c_id, m_id, 0, NO_EMOJI, NULL, &(struct discord_ret_users) {
-        .done = get_users_done_x,
-        .data = yeet,
+        .done = get_users_done,
         .keep = event,
+        .data = no_params,
     });
 
 }
