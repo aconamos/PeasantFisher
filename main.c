@@ -171,7 +171,7 @@ get_users_done(struct discord *client, struct discord_response *resp, const stru
 
     // Build the list of users string.
     char *list = calloc(2000, 1);
-    char *_fstr = malloc(25);
+    char *_fstr = calloc(25, 1);
     for (int i = 0; i < ret->size; i++) {
         cog_asprintf(&_fstr, "<@!%ld> ", ret->array[i].id);
         strcat(list, _fstr);
@@ -354,7 +354,7 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
         free_yeet->i_id = event->id;
         free_yeet->author = event->member->user->id;
         free_yeet->victim = victim_id;
-        free_yeet->token = malloc(strlen(event->token));
+        free_yeet->token = calloc(strlen(event->token) + 1, 1);
         strcpy(free_yeet->token, event->token);
 
         struct discord_interaction_response params = {
