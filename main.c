@@ -89,9 +89,13 @@ yeet_fail(struct discord *client, struct discord_response *resp)
     log_debug("yeet_fail called!");
     struct yeet_with_users *yww_data = resp->data;
     struct yeet *yeet = yww_data->yeet;
+
+    char *yeet_msg = calloc(2000, 1); // TODO get an exact size
+    cog_asprintf(&yeet_msg, "Sorry %s, but I couldn't yeet <@!%ld>. Shame them publicly instead.", yww_data->users_msg, yeet->victim);
+
     discord_delete_message(client, yeet->m_id.channel, yeet->m_id.message, NULL, NULL);
     discord_create_message(client, yeet->m_id.channel, &(struct discord_create_message) {
-        .content = "Yeet failed!",
+        .content = yeet_msg,
     }, NULL);
 
     free(yww_data->users_msg);
@@ -106,7 +110,7 @@ yeet_succ(struct discord *client, struct discord_response *resp, const struct di
     struct yeet_with_users *yww_data = resp->data;
     struct yeet *yeet = yww_data->yeet;
 
-    char *yeet_msg = malloc(2000); // TODO get an exact size
+    char *yeet_msg = calloc(2000, 1); // TODO get an exact size
     const char *yeet_msg_fmt = "User <@!%ld> yeeted in %f seconds!\nBrought to you by %s";
     cog_asprintf(&yeet_msg, yeet_msg_fmt, yeet->victim, -6.9f, yww_data->users_msg);
 
@@ -117,6 +121,7 @@ yeet_succ(struct discord *client, struct discord_response *resp, const struct di
     // TODO: Should make the edit message a callback in case of failure or whatnot
 
     free(yww_data->users_msg);
+    // yww_data->yeet = NULL; //TODO Might be correct, might be wrong. I don't know
     free(yww_data);
     yww_data = NULL;
     // TODO: Does the yeet ptr need to be freed at this point? I think we might be able to keep it.
