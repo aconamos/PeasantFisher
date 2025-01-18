@@ -16,7 +16,7 @@
 #define YES_EMOJI "✅"
 #define NO_EMOJI "❌"
 #define VOTE_COUNT 2
-#define YEET_SECONDS 90
+#define YEET_VOTING_SECONDS 90
 #define YEET_DURATION 30
 #define ACTIVE_YEETS_SIZE 20
 #define MAX_YEETS 3
@@ -32,6 +32,7 @@
  */
 
 struct yeet *active_yeets[ACTIVE_YEETS_SIZE]; // Just make an array that... should be big enough. If it crashes... oh well.
+int remaining_yeet_cnt = MAX_YEETS;
 
 void my_die();
 
@@ -110,14 +111,16 @@ yeet_succ(struct discord *client, struct discord_response *resp, const struct di
     struct yeet_with_users *yww_data = resp->data;
     struct yeet *yeet = yww_data->yeet;
 
+    u64unix_ms deltaTimeMs = (cog_timestamp_ms() - yeet->timestamp);
     char *yeet_msg = calloc(2000, 1); // TODO get an exact size
-    const char *yeet_msg_fmt = "User <@!%ld> yeeted in %f seconds!\nBrought to you by %s";
-    cog_asprintf(&yeet_msg, yeet_msg_fmt, yeet->victim, -6.9f, yww_data->users_msg);
+    const char *yeet_msg_fmt = "User <@!%ld> yeeted in %.2f seconds!\nBrought to you by %s";
+    cog_asprintf(&yeet_msg, yeet_msg_fmt, yeet->victim, (float)deltaTimeMs/1000, yww_data->users_msg);
 
     discord_delete_message(client, yeet->m_id.channel, yeet->m_id.message, NULL, NULL);
     discord_create_message(client, yeet->m_id.channel, &(struct discord_create_message) {
         .content = yeet_msg,
     }, NULL); // TODO: They will return in + callback
+    // TODO: Edit to make it say "they have since returned" or whatever
     // TODO: Should make the edit message a callback in case of failure or whatnot
 
     free(yww_data->users_msg);
@@ -209,7 +212,7 @@ murder_message(struct discord *client, struct discord_timer *timer)
         free(active_yeets[idx]->token);
         free(active_yeets[idx]);
         active_yeets[idx] = NULL;
-        // TODO: Add one more to yeet count
+        remaining_yeet_cnt++;
     }
     free(data);
 }
@@ -242,7 +245,7 @@ init_react_cb_done_get(struct discord *client, struct discord_response *resp, co
     yeet->m_id.message = ret->id;
     // TODO: Send the actual yeet* over to the timer callback to gather it all in one place
     // Hopefully that will also allow me to make use of concord's built in cleanup functionality
-    discord_timer(client, murder_message, NULL, p_message_identifier, YEET_SECONDS * 1000);
+    discord_timer(client, murder_message, NULL, p_message_identifier, YEET_VOTING_SECONDS * 1000);
 }
 
 /**
@@ -330,7 +333,7 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
             "Or, vote %s to yeet the author: <@!%ld>\n"
             "\n"
             "Otherwise, this will be deleted <t:%ld:R>\n"
-        , victim_id, VOTE_COUNT, YES_EMOJI, NO_EMOJI, event->member->user->id, time(NULL) + YEET_SECONDS);
+        , victim_id, VOTE_COUNT, YES_EMOJI, NO_EMOJI, event->member->user->id, time(NULL) + YEET_VOTING_SECONDS);
         
         // Build yeet
         int free_yeet_idx = get_first_null();
@@ -350,6 +353,8 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
                 .content = yeet_message,
             }
         };
+        // This goes here for more accurate timekeeping. Of course, it's really only like, 5 clock cycles, but come on.
+        free_yeet->timestamp = cog_timestamp_ms();
         discord_create_interaction_response(client, event->id,
                                               event->token, &params, &(struct discord_ret_interaction_response) {
                                                 .keep = event,

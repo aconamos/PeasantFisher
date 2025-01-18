@@ -1,3 +1,5 @@
+#include <time.h>
+
 #ifndef DISCORD_H
 #include "discord.h"
 #endif
@@ -14,6 +16,7 @@ struct yeet {
     u64snowflake author;
     u64snowflake victim;
     u64snowflake i_id;
+    time_t timestamp;
     int y_reacts;
     int x_reacts;
     char *token;
