@@ -67,8 +67,8 @@ get_yeet_idx_by_id(u64snowflake message_id)
         if (active_yeets[i] == NULL) continue;
         if (active_yeets[i]->m_id.message == message_id) {
             ret = i;
+            break;
         }
-        break;
     }
     return ret;
 }
