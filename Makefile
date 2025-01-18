@@ -12,13 +12,13 @@ VOICE_BOTS =
 BOTS += $(STD_BOTS)
 
 CFLAGS  += -O0 -g -pthread \
-           -I$(INCLUDE_DIR) -I$(CORE_DIR) -I$(GENCODECS_DIR)
+           -I$(INCLUDE_DIR) -I$(CORE_DIR) -I$(GENCODECS_DIR) die.c die.h structs.h
 
 CFLAGS += -std=c99 
 CFLAGS += -Wpedantic
 CFLAGS += -Wall
-CFLAGS += -fsanitize=address
-CFLAGS += -fsanitize=undefined
+# CFLAGS += -fsanitize=address
+# CFLAGS += -fsanitize=undefined
 # CFLAGS += -fsanitize=leak
 # CFLAGS += -Wwrite-strings
 

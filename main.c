@@ -4,8 +4,14 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+#ifndef DISCORD_H
 #include "discord.h"
+#endif
+
 #include "log.h"
+
+#include "die.h"
+#include "structs.h"
 
 #define GUILD_ID 849505364764524565
 #define APPLICATION_ID "1326422681955991554"
@@ -30,30 +36,6 @@
 
 struct yeet *active_yeets[ACTIVE_YEETS_SIZE]; // Just make an array that... should be big enough. If it crashes... oh well.
 
-struct message_identifier {
-    u64snowflake message;
-    u64snowflake channel;
-};
-
-struct yeet {
-    struct message_identifier m_id;
-    u64snowflake author;
-    u64snowflake victim;
-    u64snowflake i_id;
-    int y_reacts;
-    int x_reacts;
-    char *token;
-};
-
-struct yeet_with_users {
-    struct yeet *yeet;
-    char *users_msg;
-};
-
-struct get_reactions_params {
-    struct yeet *yeet;
-    char *emoji;
-};
 
 /**
  * This method take a message ID snowflake and returns the index of the active_yeets array that corresponds to the snowflake,
@@ -347,7 +329,8 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
         , victim_id, VOTE_COUNT, YES_EMOJI, NO_EMOJI, event->member->user->id, time(NULL) + YEET_SECONDS);
         
         // Build yeet
-        int free_yeet_idx = get_first_null(); // This doesn't check for the -1 case. That's because if we reach it, we're fucked anyways. Crashing is the best behavior then.
+        int free_yeet_idx = get_first_null();
+        if (free_yeet_idx == -1) my_die();
         struct yeet *free_yeet = malloc(sizeof(struct yeet));
         active_yeets[free_yeet_idx] = free_yeet;
 
@@ -442,4 +425,11 @@ int main(int argc, char* argv[]) {
 
     discord_cleanup(client);
     ccord_global_cleanup();
+}
+
+void
+my_die()
+{
+    dumps_yeet_arr(active_yeets);
+    die("CRITICAL: active_yeets array must be full! No null pointers found, can't initialize a new yeet!");
 }
