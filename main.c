@@ -4,10 +4,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-#ifndef DISCORD_H
 #include "discord.h"
-#endif
-
 #include "log.h"
 
 #include "die.h"
@@ -36,6 +33,7 @@
 
 struct yeet *active_yeets[ACTIVE_YEETS_SIZE]; // Just make an array that... should be big enough. If it crashes... oh well.
 
+void my_die();
 
 /**
  * This method take a message ID snowflake and returns the index of the active_yeets array that corresponds to the snowflake,
@@ -154,7 +152,8 @@ get_users_done(struct discord *client, struct discord_response *resp, const stru
     // Build the list of users string.
     char *list = calloc(2000, 1);
     char *_fstr = calloc(25, 1);
-    for (int i = 0; i < ret->size; i++) {
+    // This -1 relies on the bot being the first react, because for some reason, that makes them the last in the array.
+    for (int i = 0; i < ret->size - 1; i++) {
         cog_asprintf(&_fstr, "<@!%ld> ", ret->array[i].id);
         strcat(list, _fstr);
     }
@@ -374,31 +373,26 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
 
     struct yeet *yeet = active_yeets[idx];
     
-    char *str;
-    cog_asprintf(&str, "EMOJI REACTED: %s", name);
-    log_info(str);
-    free(str);
-
+    log_info("EMOJI REACTED: %s", name);
     log_debug("TOKEN %s / MESSAGE_ID %ld", yeet->token, yeet->m_id.message);
 
-    struct get_reactions_params *yes_params = malloc(sizeof(struct get_reactions_params));
-    struct get_reactions_params *no_params = malloc(sizeof(struct get_reactions_params));
-    yes_params->yeet = yeet;
-    no_params->yeet = yeet;
-    yes_params->emoji = YES_EMOJI;
-    no_params->emoji = NO_EMOJI;
+    struct get_reactions_params *yes_ret_params = malloc(sizeof(struct get_reactions_params));
+    struct get_reactions_params *no_ret_params = malloc(sizeof(struct get_reactions_params));
+    yes_ret_params->yeet = yeet;
+    no_ret_params->yeet = yeet;
+    yes_ret_params->emoji = YES_EMOJI;
+    no_ret_params->emoji = NO_EMOJI;
 
     discord_get_reactions(client, c_id, m_id, 0, YES_EMOJI, NULL, &(struct discord_ret_users) {
         .done = get_users_done,
         .keep = event,
-        .data = yes_params,
+        .data = yes_ret_params,
     });
     discord_get_reactions(client, c_id, m_id, 0, NO_EMOJI, NULL, &(struct discord_ret_users) {
         .done = get_users_done,
         .keep = event,
-        .data = no_params,
+        .data = no_ret_params,
     });
-
 }
 
 int main(int argc, char* argv[]) {

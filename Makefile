@@ -17,9 +17,9 @@ CFLAGS  += -O0 -g -pthread \
 CFLAGS += -std=c99 
 CFLAGS += -Wpedantic
 CFLAGS += -Wall
-# CFLAGS += -fsanitize=address
-# CFLAGS += -fsanitize=undefined
-# CFLAGS += -fsanitize=leak
+CFLAGS += -fsanitize=address
+CFLAGS += -fsanitize=undefined
+CFLAGS += -fsanitize=leak
 # CFLAGS += -Wwrite-strings
 
 LDFLAGS  = -L$(TOP)/concord/lib
