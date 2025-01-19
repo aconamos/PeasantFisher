@@ -1,8 +1,11 @@
 #include <time.h>
+#include <stdarg.h>
 
-#include "structs.h"
-#include "die.h"
+#include "structs.c"
 
+
+#ifndef DIE
+#define DIE
 #define FILENAME "crash.log"
 
 /*
@@ -76,3 +79,4 @@ dumps_yeet_arr(struct yeet **yeets)
 
     return 0;
 }
+#endif
