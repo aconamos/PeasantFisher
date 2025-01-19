@@ -1,11 +1,11 @@
 #include <time.h>
 
-#ifndef DISCORD_H
 #include "discord.h"
-#endif
+
 
 #ifndef STRUCTS
 #define STRUCTS
+
 struct message_identifier {
     u64snowflake message;
     u64snowflake channel;

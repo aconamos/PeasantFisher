@@ -7,11 +7,10 @@
 #include "discord.h"
 #include "log.h"
 
-#include "die.h"
-#include "structs.h"
+#include "structs.c"
+#include "die.c"
 
 #define GUILD_ID 849505364764524565
-#define APPLICATION_ID "1326422681955991554"
 #define BOT_ID 1326422681955991554
 #define YES_EMOJI "✅"
 #define NO_EMOJI "❌"
@@ -102,6 +101,7 @@ yeet_fail(struct discord *client, struct discord_response *resp)
     free(yww_data->users_msg);
     free(yww_data);
     yww_data = NULL;
+    free(yeet_msg);
 }
 
 void 
@@ -127,6 +127,7 @@ yeet_succ(struct discord *client, struct discord_response *resp, const struct di
     // yww_data->yeet = NULL; //TODO Might be correct, might be wrong. I don't know
     free(yww_data);
     yww_data = NULL;
+    free(yeet_msg);
     // TODO: Does the yeet ptr need to be freed at this point? I think we might be able to keep it.
 }
 
@@ -183,6 +184,7 @@ get_users_done(struct discord *client, struct discord_response *resp, const stru
     });
 
     free(resp->data);
+    free(data);
     
     // Saving this for later
     // discord_edit_followup_message(client, BOT_ID, yeet->token, yeet->m_id.message, &(struct discord_edit_followup_message) {
