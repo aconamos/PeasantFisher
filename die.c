@@ -65,7 +65,7 @@ dumps_yeet_arr(struct yeet **yeets)
             "Y_REACTS-X_REACTS: %d-%d\n"
             "INTERACTION_TOKEN: %s\n"
             "\n\n",
-            i, o,
+            i, (void*)o,
             o->m_id.message,
             o->m_id.channel,
             o->author,

@@ -20,7 +20,26 @@ CFLAGS += -Wall
 # CFLAGS += -fsanitize=address
 # CFLAGS += -fsanitize=undefined
 # CFLAGS += -fsanitize=leak
-# CFLAGS += -Wwrite-strings
+CFLAGS += -Wextra
+CFLAGS += -Waggregate-return
+CFLAGS += -Wbad-function-cast
+CFLAGS += -Wcast-align
+CFLAGS += -Wcast-qual
+CFLAGS += -Wfloat-equal
+CFLAGS += -Wformat=2
+CFLAGS += -Wlogical-op
+CFLAGS += -Wmissing-include-dirs
+CFLAGS += -Wnested-externs
+CFLAGS += -Wpointer-arith
+CFLAGS += -Wredundant-decls
+CFLAGS += -Wsequence-point
+CFLAGS += -Wshadow
+CFLAGS += -Wswitch
+CFLAGS += -Wundef
+CFLAGS += -Wunreachable-code
+CFLAGS += -Wwrite-strings
+
+CFLAGS += -Wno-discarded-qualifiers
 
 LDFLAGS  = -L$(TOP)/concord/lib
 LDLIBS   = -ldiscord -lcurl

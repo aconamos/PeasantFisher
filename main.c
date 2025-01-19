@@ -33,7 +33,7 @@
 struct yeet *active_yeets[ACTIVE_YEETS_SIZE]; // Just make an array that... should be big enough. If it crashes... oh well.
 int remaining_yeet_cnt = MAX_YEETS;
 
-void my_die();
+void my_die(void);
 
 /**
  * This method take a message ID snowflake and returns the index of the active_yeets array that corresponds to the snowflake,
@@ -75,7 +75,7 @@ get_yeet_idx_by_token(u64snowflake interaction_id)
  * This method returns the index of the first null pointer in the active_yeets array.
  */
 int
-get_first_null()
+get_first_null(void)
 {
     for (int i = 0; i < ACTIVE_YEETS_SIZE; i++) {
         if (active_yeets[i] == NULL) return i;
@@ -113,8 +113,7 @@ yeet_succ(struct discord *client, struct discord_response *resp, const struct di
 
     u64unix_ms deltaTimeMs = (cog_timestamp_ms() - yeet->timestamp);
     char *yeet_msg = calloc(2000, 1); // TODO get an exact size
-    const char *yeet_msg_fmt = "User <@!%ld> yeeted in %.2f seconds!\nBrought to you by %s";
-    cog_asprintf(&yeet_msg, yeet_msg_fmt, yeet->victim, (float)deltaTimeMs/1000, yww_data->users_msg);
+    cog_asprintf(&yeet_msg, "User <@!%ld> yeeted in %.2f seconds!\nBrought to you by %s", yeet->victim, (float)deltaTimeMs/1000, yww_data->users_msg);
 
     discord_delete_message(client, yeet->m_id.channel, yeet->m_id.message, NULL, NULL);
     discord_create_message(client, yeet->m_id.channel, &(struct discord_create_message) {
