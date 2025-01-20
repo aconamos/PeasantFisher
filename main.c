@@ -20,6 +20,7 @@
 #define YEET_DURATION 30
 #define ACTIVE_YEETS_SIZE 20
 #define MAX_YEETS 3
+#define YEET_REGEN_S 3600
 
 
 /**
@@ -293,6 +294,17 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
 
     if (strcmp(event->data->name, "yeet") == 0) {
         log_info("Yeet called!");
+        if (remaining_yeet_cnt <= 0) {
+            discord_create_interaction_response(client, event->id, event->token, &(struct discord_interaction_response) {
+                .type = DISCORD_INTERACTION_CHANNEL_MESSAGE_WITH_SOURCE,
+                .data = &(struct discord_interaction_callback_data) {
+                    .content = "Out of yeets!",
+                    .flags = DISCORD_MESSAGE_EPHEMERAL,
+                },
+            }, NULL);
+            return;
+        }
+        remaining_yeet_cnt--;
 
         // Build yeet
         int free_yeet_idx = get_first_null();
@@ -377,6 +389,13 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
     });
 }
 
+void 
+replenish_yeet(struct discord *client, struct discord_timer *ev)
+{
+    log_debug("Replenishing yeet!");
+    if (remaining_yeet_cnt < 3) remaining_yeet_cnt++;
+}
+
 int main(int argc, char* argv[]) {
     // Load config file
     const char *config_file;
@@ -394,6 +413,17 @@ int main(int argc, char* argv[]) {
     discord_set_on_ready(client, &on_ready);
     discord_set_on_interaction_create(client, &on_interaction);
     discord_set_on_message_reaction_add(client, &on_react);
+
+    // Make the max yeets replenishment timer
+    discord_timer_interval(
+        client,
+        replenish_yeet,
+        NULL,
+        NULL,
+        1000,
+        YEET_REGEN_S * 1000,
+        -1
+    );
 
     // Run and wait for input?    
     discord_run(client);
