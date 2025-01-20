@@ -9,6 +9,7 @@
 
 #include "structs.c"
 #include "die.c"
+#include "arena.c"
 
 #define GUILD_ID 849505364764524565
 #define BOT_ID 1326422681955991554
@@ -36,7 +37,7 @@ int remaining_yeet_cnt = MAX_YEETS;
 void my_die(void);
 
 /**
- * This method take a message ID snowflake and returns the index of the active_yeets array that corresponds to the snowflake,
+ * This method takes a message ID snowflake and returns the index of the active_yeets array that corresponds to the snowflake,
  * if there are any. Returns -1 otherwise.
  */
 int
@@ -54,7 +55,7 @@ get_yeet_idx_by_id(u64snowflake message_id)
 }
 
 /**
- * This method take an interaction ID snowflake and returns the index of the active_yeets array that corresponds to the snowflake,
+ * This method takes an interaction ID snowflake and returns the index of the active_yeets array that corresponds to the snowflake,
  * if there are any. Returns -1 otherwise.
  */
 int
