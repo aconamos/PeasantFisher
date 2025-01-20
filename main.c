@@ -24,8 +24,6 @@
 
 /**
  * TODO
- * - Reactions should trigger a query on the yeet
- *      - If the reactions meet quota, it triggers a function to yeet, and then deletes the yeet? (I think this works? Do we need to keep track after?)
  * - Max yeets feature
  *      - Use a discord timer to add one every hour
  *      - Create the message for being out of yeets
@@ -91,18 +89,13 @@ yeet_fail(struct discord *client, struct discord_response *resp)
     struct yeet_with_users *yww_data = resp->data;
     struct yeet *yeet = yww_data->yeet;
 
-    char *yeet_msg = calloc(2000, 1); // TODO get an exact size
+    char *yeet_msg = arena_calloc(yeet->arena, 2000); // TODO get an exact size
     cog_asprintf(&yeet_msg, "Sorry %s, but I couldn't yeet <@!%ld>. Shame them publicly instead.", yww_data->users_msg, yeet->victim);
 
     discord_delete_message(client, yeet->m_id.channel, yeet->m_id.message, NULL, NULL);
     discord_create_message(client, yeet->m_id.channel, &(struct discord_create_message) {
         .content = yeet_msg,
     }, NULL);
-
-    free(yww_data->users_msg);
-    free(yww_data);
-    yww_data = NULL;
-    free(yeet_msg);
 }
 
 void 
@@ -113,22 +106,14 @@ yeet_succ(struct discord *client, struct discord_response *resp, const struct di
     struct yeet *yeet = yww_data->yeet;
 
     u64unix_ms deltaTimeMs = (cog_timestamp_ms() - yeet->timestamp);
-    char *yeet_msg = calloc(2000, 1); // TODO get an exact size
+    char *yeet_msg = arena_calloc(yeet->arena, 2000); // TODO get an exact size
     cog_asprintf(&yeet_msg, "User <@!%ld> yeeted in %.2f seconds!\nBrought to you by %s", yeet->victim, (float)deltaTimeMs/1000, yww_data->users_msg);
 
     discord_delete_message(client, yeet->m_id.channel, yeet->m_id.message, NULL, NULL);
     discord_create_message(client, yeet->m_id.channel, &(struct discord_create_message) {
         .content = yeet_msg,
     }, NULL); // TODO: They will return in + callback
-    // TODO: Edit to make it say "they have since returned" or whatever
-    // TODO: Should make the edit message a callback in case of failure or whatnot
-
-    free(yww_data->users_msg);
-    // yww_data->yeet = NULL; //TODO Might be correct, might be wrong. I don't know
-    free(yww_data);
-    yww_data = NULL;
-    free(yeet_msg);
-    // TODO: Does the yeet ptr need to be freed at this point? I think we might be able to keep it.
+    // TODO: Edit to make it say "they have since returned" or whatever (use a callback in case of failure)
 }
 
 void
@@ -159,38 +144,28 @@ get_users_done(struct discord *client, struct discord_response *resp, const stru
     log_debug("USERS SIZE: %ld", ret->size);
 
     // Build the list of users string.
-    char *list = calloc(2000, 1);
-    char *_fstr = calloc(25, 1);
-    // This -1 relies on the bot being the first react, because for some reason, that makes them the last in the array.
-    for (int i = 0; i < ret->size - 1; i++) {
+    char *list = arena_calloc(yeet->arena, 2000);
+    char *_fstr = arena_calloc(yeet->arena, 25);
+    for (int i = 0; i < ret->size; i++) {
+        if (ret->array[i].id == BOT_ID) continue;
         cog_asprintf(&_fstr, "<@!%ld> ", ret->array[i].id);
         strcat(list, _fstr);
     }
-    free(_fstr);
-    
 
+    log_debug("g_u_d: list: %s", list);
 
     // For some reason, we gotta use heap memory here. 
-    struct yeet_with_users *data = malloc(sizeof(struct yeet_with_users));
+    struct yeet_with_users *data = arena_alloc(yeet->arena, sizeof(struct yeet_with_users));
     data->users_msg = list;
     data->yeet = yeet;
 
     discord_modify_guild_member(client, GUILD_ID, target, &(struct discord_modify_guild_member) {
-        .communication_disabled_until = (u64unix_ms)((time(NULL) + YEET_DURATION)* 1000), // This needs an extra *1000 because for some reason discord's timestamps have extra precision. /shrug
+        .communication_disabled_until = (u64unix_ms)((time(NULL) + YEET_DURATION) * 1000), // This needs an extra *1000 because for some reason discord's timestamps have extra precision. /shrug
     }, &(struct discord_ret_guild_member) {
         .done = yeet_succ,
         .fail = yeet_fail,
         .data = data,
     });
-
-    free(resp->data);
-    free(data);
-    
-    // Saving this for later
-    // discord_edit_followup_message(client, BOT_ID, yeet->token, yeet->m_id.message, &(struct discord_edit_followup_message) {
-    //     .content = "User Yeeted",
-    //     // TODO: Create another followup, not just edit
-    // }, NULL);
 }
 
 /**
@@ -211,12 +186,12 @@ murder_message(struct discord *client, struct discord_timer *timer)
     // we free the pointer there and set it to NULL.
     int idx = get_yeet_idx_by_id(data->message);
     if (idx != -1) {
-        free(active_yeets[idx]->token);
+        log_debug("murder_message: freeing arena @ %p\n\t\tfreeing yeet @ %p", active_yeets[idx]->arena, active_yeets[idx]);
+        arena_free(active_yeets[idx]->arena);
         free(active_yeets[idx]);
         active_yeets[idx] = NULL;
         remaining_yeet_cnt++;
     }
-    free(data);
 }
 
 /**
@@ -228,25 +203,17 @@ init_react_cb_done_get(struct discord *client, struct discord_response *resp, co
 {
     discord_create_reaction(client, ret->channel_id, ret->id, 0, YES_EMOJI, NULL);
     discord_create_reaction(client, ret->channel_id, ret->id, 0, NO_EMOJI, NULL);
-    // Let it be known, that here lies the very first call to malloc I have ever made.
-    // A monumental step in my CS career. I can only look back on my days of Java and think, "Wow. What a baby."
-    // Though I realize I am far from the adult; I am still but a toddler. Nonetheless, I manage memory.
-    // What a day.
-    // This message_identifier is a little redudant because it's only going to be used for 
-    // deleting the message, but it's not a problem I care to fix.
-    struct message_identifier *p_message_identifier = malloc(sizeof(struct message_identifier));
-    p_message_identifier->channel = ret->channel_id;
-    p_message_identifier->message = ret->id;
-    log_debug("Timestamp of the yeet message: %ld", ret->timestamp);
-    log_debug("Time from sys: %ld", time(NULL));
 
     log_debug("Interaction ID (CB): %ld", ret->interaction->id);
     int idx = get_yeet_idx_by_token(ret->interaction->id);
     struct yeet *yeet = active_yeets[idx];
     yeet->m_id.channel = ret->channel_id;
     yeet->m_id.message = ret->id;
-    // TODO: Send the actual yeet* over to the timer callback to gather it all in one place
-    // Hopefully that will also allow me to make use of concord's built in cleanup functionality
+
+    struct message_identifier *p_message_identifier = arena_alloc(yeet->arena, sizeof(struct message_identifier));
+    p_message_identifier->channel = ret->channel_id;
+    p_message_identifier->message = ret->id;
+
     discord_timer(client, murder_message, NULL, p_message_identifier, YEET_VOTING_SECONDS * 1000);
 }
 
@@ -326,6 +293,14 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
 
     if (strcmp(event->data->name, "yeet") == 0) {
         log_info("Yeet called!");
+
+        // Build yeet
+        int free_yeet_idx = get_first_null();
+        if (free_yeet_idx == -1) my_die();
+        struct yeet *free_yeet = malloc(sizeof(struct yeet));
+        active_yeets[free_yeet_idx] = free_yeet;
+        arena_init(&(free_yeet->arena), 16384);
+
         u64snowflake victim_id = strtoul(event->data->options->array[0].value, NULL, 10);
 
         // Format message
@@ -337,16 +312,11 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
             "Otherwise, this will be deleted <t:%ld:R>\n"
         , victim_id, VOTE_COUNT, YES_EMOJI, NO_EMOJI, event->member->user->id, time(NULL) + YEET_VOTING_SECONDS);
         
-        // Build yeet
-        int free_yeet_idx = get_first_null();
-        if (free_yeet_idx == -1) my_die();
-        struct yeet *free_yeet = malloc(sizeof(struct yeet));
-        active_yeets[free_yeet_idx] = free_yeet;
 
         free_yeet->i_id = event->id;
         free_yeet->author = event->member->user->id;
         free_yeet->victim = victim_id;
-        free_yeet->token = calloc(strlen(event->token) + 1, 1);
+        free_yeet->token = arena_alloc(free_yeet->arena, strlen(event->token) + 1);
         strcpy(free_yeet->token, event->token);
 
         struct discord_interaction_response params = {
@@ -388,8 +358,8 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
     log_info("EMOJI REACTED: %s", name);
     log_debug("TOKEN %s / MESSAGE_ID %ld", yeet->token, yeet->m_id.message);
 
-    struct get_reactions_params *yes_ret_params = malloc(sizeof(struct get_reactions_params));
-    struct get_reactions_params *no_ret_params = malloc(sizeof(struct get_reactions_params));
+    struct get_reactions_params *yes_ret_params = arena_alloc(yeet->arena, sizeof(struct get_reactions_params));
+    struct get_reactions_params *no_ret_params = arena_alloc(yeet->arena, sizeof(struct get_reactions_params));
     yes_ret_params->yeet = yeet;
     no_ret_params->yeet = yeet;
     yes_ret_params->emoji = YES_EMOJI;
