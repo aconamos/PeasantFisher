@@ -23,13 +23,6 @@
 #define YEET_REGEN_S 3600
 
 
-/**
- * TODO
- * - Max yeets feature
- *      - Use a discord timer to add one every hour
- *      - Create the message for being out of yeets
- */
-
 struct yeet *active_yeets[ACTIVE_YEETS_SIZE]; // Just make an array that... should be big enough. If it crashes... oh well.
 int remaining_yeet_cnt = MAX_YEETS;
 
