@@ -2,6 +2,8 @@
 
 #include "discord.h"
 
+#include "arena.c" // TODO better way to do this include 
+
 
 #ifndef STRUCTS
 #define STRUCTS
@@ -13,6 +15,7 @@ struct message_identifier {
 
 struct yeet {
     struct message_identifier m_id;
+    struct Arena *arena;
     u64snowflake author;
     u64snowflake victim;
     u64snowflake i_id;
