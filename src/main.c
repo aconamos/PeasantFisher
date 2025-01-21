@@ -17,11 +17,6 @@
 #include "commands/yeet.c"
 
 
-int remaining_yeet_cnt = MAX_YEETS;
-
-
-
-
 /**
  * This serves to build the application commands necessary for the bot to function.
  */
