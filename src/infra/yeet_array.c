@@ -87,4 +87,11 @@ nullifree_yeet(struct discord *client, struct yeet *target)
         }
     }
 }
+
+void
+mod_yeet_count(struct discord *client, int term)
+{
+    struct instance_data *instance_data = discord_get_data(client);
+    instance_data->yeets_cnt += term;
+}
 #endif

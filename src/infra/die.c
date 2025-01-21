@@ -79,4 +79,12 @@ dumps_yeet_arr(struct yeet **yeets)
 
     return 0;
 }
+
+void
+my_die(struct discord *client)
+{
+    struct yeet **yeet_arr = ((struct instance_data*)discord_get_data(client))->active_yeets;
+    dumps_yeet_arr(yeet_arr);
+    die("CRITICAL: active_yeets array must be full! No null pointers found, can't initialize a new yeet!");
+}
 #endif

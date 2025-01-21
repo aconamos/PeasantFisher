@@ -42,5 +42,6 @@ struct get_reactions_params {
 struct instance_data {
     struct yeet **active_yeets;
     int active_yeets_size;
+    int yeets_cnt;
 };
 #endif
