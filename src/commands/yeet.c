@@ -25,6 +25,7 @@ yeet_fail(struct discord *client, struct discord_response *resp)
     }, NULL);
 }
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 void 
 yeet_succ(struct discord *client, struct discord_response *resp, const struct discord_guild_member *ret)
 {
@@ -124,6 +125,7 @@ murder_message(struct discord *client, struct discord_timer *timer)
  * This callback serves to finish constructing yeet data and start the timer to delete it.
  * It is the last call to construct the yeet following the initial reaction from the bot.
  */
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 void 
 init_react_cb_done_get(struct discord *client, struct discord_response *resp, const struct discord_message *ret) 
 {
@@ -146,6 +148,7 @@ init_react_cb_done_get(struct discord *client, struct discord_response *resp, co
  * This callback serves to call the other, more useful callback.
  * I'm not sure why it's required; I copied it from somewhere.
  */
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 void 
 init_react_cb_done(struct discord *client, struct discord_response *resp, const struct discord_interaction_response *ret) 
 {
@@ -254,6 +257,7 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
     });
 }
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 void 
 replenish_yeet(struct discord *client, struct discord_timer *ev)
 {
