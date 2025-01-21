@@ -39,7 +39,7 @@ LDLIBS   = -ldiscord -lcurl
 
 CFLAGS +=  $(LDFLAGS)
 
-all: release debug asan
+all: outdir release debug asan
 
 release: $(CORE_DIR)
 	$(CC) -O2 $(CFLAGS) \
@@ -54,7 +54,7 @@ asan: $(CORE_DIR)
 	-g $(CFLAGS) main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
 
 
-$(CORE_DIR): outdir
+$(CORE_DIR):
 	git submodule update --init --recursive
 	cd concord && git checkout update/gencodecs \
 			   && make \
@@ -66,4 +66,4 @@ outdir:
 clean:
 	rm -f $(OUT_DIR)/*
 
-.PHONY: all clean
+.PHONY: all clean outdir
