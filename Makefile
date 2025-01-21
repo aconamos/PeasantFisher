@@ -5,6 +5,7 @@ CORE_DIR      = $(TOP)/concord/core
 INCLUDE_DIR   = $(TOP)/concord/include
 GENCODECS_DIR = $(TOP)/concord/gencodecs
 
+SRC_DIR		  = $(TOP)/src
 OUT_DIR 	  = $(TOP)/bin
 
 CFLAGS += -pthread \
@@ -43,15 +44,15 @@ all: outdir release debug asan
 
 release: $(CORE_DIR)
 	$(CC) -O2 $(CFLAGS) \
-	main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
+	$(SRC_DIR)/main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
 
 debug: $(CORE_DIR)
 	$(CC) -O0 -DDEBUG -g $(CFLAGS) \
-	main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
+	$(SRC_DIR)/main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
 
 asan: $(CORE_DIR)
 	$(CC) -O0 -DDEBUG -fsanitize=address -fsanitize=undefined -fsanitize=leak \
-	-g $(CFLAGS) main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
+	-g $(CFLAGS) $(SRC_DIR)/main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
 
 
 $(CORE_DIR):
