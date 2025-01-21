@@ -25,7 +25,7 @@ The token goes in `config.json`.
 
 #### Functionality
 Assuming you already have a bot application invited to your server with the send messages and manage users permissions (that setup won't be covered here),
-Edit `main.c` to adjust the following preprocessor macros:
+Edit `src/project_vars.h` to adjust the following preprocessor macros:
 - `GUILD_ID`: the guild this bot should function in
 - `BOT_ID`: the user ID of the bot
 - `VOTE_COUNT`: the amount of votes for a yeet to pass
