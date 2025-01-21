@@ -36,23 +36,25 @@
 #endif
 
 
-struct yeet *active_yeets[ACTIVE_YEETS_SIZE]; // Just make an array that... should be big enough. If it crashes... oh well.
 int remaining_yeet_cnt = MAX_YEETS;
 
-void my_die(void);
+void my_die(struct discord *client);
 
 /**
- * This method takes a message ID snowflake and returns the index of the active_yeets array that corresponds to the snowflake,
- * if there are any. Returns -1 otherwise.
+ * This method takes a message ID snowflake and returns the associated yeet in `client`'s yeets.
+ * 
+ * @param client the discord client with the yeet array
+ * @return pointer to the matching yeet, or NULL if not found
  */
-int
-get_yeet_idx_by_id(u64snowflake message_id)
+struct yeet *
+get_yeet_by_id(struct discord *client, u64snowflake message_id)
 {
-    int ret = -1;
+    struct yeet **yeet_arr = ((struct peasant_data*)discord_get_data(client))->active_yeets;
+    struct yeet *ret = NULL;
     for (int i = 0; i < ACTIVE_YEETS_SIZE; i++) {
-        if (active_yeets[i] == NULL) continue;
-        if (active_yeets[i]->m_id.message == message_id) {
-            ret = i;
+        if (*(yeet_arr + i) == NULL) continue;
+        if ((*(yeet_arr + i))->m_id.message == message_id) {
+            ret = *(yeet_arr + i);
             break;
         }
     }
@@ -60,17 +62,20 @@ get_yeet_idx_by_id(u64snowflake message_id)
 }
 
 /**
- * This method takes an interaction ID snowflake and returns the index of the active_yeets array that corresponds to the snowflake,
- * if there are any. Returns -1 otherwise.
+ * This method takes an interaction ID snowflake and returns the associated yeet in `client`'s yeets.
+ * 
+ * @param client the discord client with the yeet array
+ * @return pointer to the matching yeet, or NULL if not found
  */
-int
-get_yeet_idx_by_token(u64snowflake interaction_id) 
+struct yeet *
+get_yeet_by_token(struct discord *client, u64snowflake interaction_id) 
 {
-    int ret = -1;
+    struct yeet **yeet_arr = ((struct peasant_data*)discord_get_data(client))->active_yeets;
+    struct yeet *ret = NULL;
     for (int i = 0; i < ACTIVE_YEETS_SIZE; i++) {
-        if (active_yeets[i] == NULL) continue;
-        if (active_yeets[i]->i_id == interaction_id) {
-            ret = i;
+        if (*(yeet_arr + i) == NULL) continue;
+        if ((*(yeet_arr + i))->i_id == interaction_id) {
+            ret = *(yeet_arr + i);
             break;
         }
     }
@@ -78,15 +83,39 @@ get_yeet_idx_by_token(u64snowflake interaction_id)
 }
 
 /**
- * This method returns the index of the first null pointer in the active_yeets array.
+ * This method finds the first null (empty) yeet in `client`'s yeets.
+ * 
+ * @param client the discord client with the yeet array
+ * @return pointer to the pointer to the matching yeet, or NULL if not found
  */
-int
-get_first_null(void)
+struct yeet **
+get_first_null(struct discord *client)
 {
+    struct yeet **yeet_arr = ((struct peasant_data*)discord_get_data(client))->active_yeets;
     for (int i = 0; i < ACTIVE_YEETS_SIZE; i++) {
-        if (active_yeets[i] == NULL) return i;
+        if (*(yeet_arr + i) == NULL) return (yeet_arr + i);
     }
-    return -1; // God I hope we never reach this
+    return NULL; // God I hope we never reach this
+}
+
+/**
+ * This method finds the associated yeet and sets it to null after freeing it.
+ * 
+ * @param client the discord client with the yeet array
+ * @param target the yeet to look for
+ */
+void
+nullifree_yeet(struct discord *client, struct yeet *target)
+{
+    struct yeet **yeet_arr = ((struct peasant_data*)discord_get_data(client))->active_yeets;
+    for (int i = 0; i < ACTIVE_YEETS_SIZE; i++) {
+        if (*(yeet_arr + i) == target) {
+            struct yeet *targ = *(yeet_arr + i);
+            free(targ); // Separating the free to make the compiler shut up about use-after-free 
+            *(yeet_arr + i) = NULL;
+            return;
+        }
+    }
 }
 
 void 
@@ -191,12 +220,11 @@ murder_message(struct discord *client, struct discord_timer *timer)
     // If decided, the pointer will be null and removed from the active_yeets array.
     // We will use the message id to search and if the search doesn't return -1,
     // we free the pointer there and set it to NULL.
-    int idx = get_yeet_idx_by_id(data->message);
-    if (idx != -1) {
-        log_debug("murder_message: freeing arena @ %p\n\t\tfreeing yeet @ %p", active_yeets[idx]->arena, active_yeets[idx]);
-        arena_free(active_yeets[idx]->arena);
-        free(active_yeets[idx]);
-        active_yeets[idx] = NULL;
+    struct yeet *yeet = get_yeet_by_id(client, data->message);
+    if (yeet != NULL) {
+        log_debug("murder_message: freeing arena @ %p\n\t\tfreeing yeet @ %p", yeet->arena, yeet);
+        arena_free(yeet->arena);
+        nullifree_yeet(client, yeet);
         remaining_yeet_cnt++;
     }
 }
@@ -212,8 +240,7 @@ init_react_cb_done_get(struct discord *client, struct discord_response *resp, co
     discord_create_reaction(client, ret->channel_id, ret->id, 0, NO_EMOJI, NULL);
 
     log_debug("Interaction ID (CB): %ld", ret->interaction->id);
-    int idx = get_yeet_idx_by_token(ret->interaction->id);
-    struct yeet *yeet = active_yeets[idx];
+    struct yeet *yeet = get_yeet_by_token(client, ret->interaction->id);
     yeet->m_id.channel = ret->channel_id;
     yeet->m_id.message = ret->id;
 
@@ -313,10 +340,10 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
         remaining_yeet_cnt--;
 
         // Build yeet
-        int free_yeet_idx = get_first_null();
-        if (free_yeet_idx == -1) my_die();
+        struct yeet **null_yeet_addr = get_first_null(client);
+        if (null_yeet_addr == NULL) my_die(client);
         struct yeet *free_yeet = malloc(sizeof(struct yeet));
-        active_yeets[free_yeet_idx] = free_yeet;
+        *null_yeet_addr = free_yeet;
         arena_init(&(free_yeet->arena), 16384);
 
         u64snowflake victim_id = strtoul(event->data->options->array[0].value, NULL, 10);
@@ -334,7 +361,7 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
         free_yeet->i_id = event->id;
         free_yeet->author = event->member->user->id;
         free_yeet->victim = victim_id;
-        free_yeet->token = arena_alloc(free_yeet->arena, strlen(event->token) + 1);
+        free_yeet->token = arena_calloc(free_yeet->arena, strlen(event->token) + 1);
         strcpy(free_yeet->token, event->token);
 
         struct discord_interaction_response params = {
@@ -368,10 +395,8 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
     u64snowflake c_id = event->channel_id;
     
     // Check to make sure we're not doing yeet things on a non-yeet message
-    int idx = get_yeet_idx_by_id(m_id);
-    if (idx == -1) return;
-
-    struct yeet *yeet = active_yeets[idx];
+    struct yeet *yeet = get_yeet_by_id(client, m_id);
+    if (yeet == NULL) return;
     
     log_info("EMOJI REACTED: %s", name);
     log_debug("TOKEN %s / MESSAGE_ID %ld", yeet->token, yeet->m_id.message);
@@ -420,6 +445,12 @@ int main(int argc, char* argv[]) {
     discord_set_on_interaction_create(client, &on_interaction);
     discord_set_on_message_reaction_add(client, &on_react);
 
+    // Set up a yeet array and add it to the client data
+    struct yeet **client_yeets = calloc(ACTIVE_YEETS_SIZE, sizeof(struct yeet*));
+    struct peasant_data *instance_data = malloc(sizeof(struct peasant_data));
+    instance_data->active_yeets = client_yeets;
+    discord_set_data(client, instance_data);
+
     // Make the max yeets replenishment timer
     discord_timer_interval(
         client,
@@ -440,8 +471,9 @@ int main(int argc, char* argv[]) {
 }
 
 void
-my_die()
+my_die(struct discord *client)
 {
-    dumps_yeet_arr(active_yeets);
+    struct yeet **yeet_arr = ((struct peasant_data*)discord_get_data(client))->active_yeets;
+    dumps_yeet_arr(yeet_arr);
     die("CRITICAL: active_yeets array must be full! No null pointers found, can't initialize a new yeet!");
 }

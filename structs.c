@@ -8,6 +8,10 @@
 #ifndef STRUCTS
 #define STRUCTS
 
+// #ifndef ACTIVE_YEETS_SIZE
+// #define ACTIVE_YEETS_SIZE 20 // make compiler happy
+// #endif
+
 struct message_identifier {
     u64snowflake message;
     u64snowflake channel;
@@ -33,5 +37,9 @@ struct yeet_with_users {
 struct get_reactions_params {
     struct yeet *yeet;
     char *emoji;
+};
+
+struct peasant_data {
+    struct yeet **active_yeets;
 };
 #endif
