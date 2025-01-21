@@ -39,7 +39,8 @@ struct get_reactions_params {
     char *emoji;
 };
 
-struct peasant_data {
+struct instance_data {
     struct yeet **active_yeets;
+    int active_yeets_size;
 };
 #endif
