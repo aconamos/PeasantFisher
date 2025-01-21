@@ -46,11 +46,11 @@ release: $(CORE_DIR)
 	main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
 
 debug: $(CORE_DIR)
-	$(CC) -O0 -g $(CFLAGS) \
+	$(CC) -O0 -DDEBUG -g $(CFLAGS) \
 	main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
 
 asan: $(CORE_DIR)
-	$(CC) -O0 -fsanitize=address -fsanitize=undefined -fsanitize=leak \
+	$(CC) -O0 -DDEBUG -fsanitize=address -fsanitize=undefined -fsanitize=leak \
 	-g $(CFLAGS) main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
 
 
