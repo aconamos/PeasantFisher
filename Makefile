@@ -1,25 +1,19 @@
-# This Makefile assumes the top folder has been built
 TOP = .
-CC ?= cc
+CC ?= gcc
 
 CORE_DIR      = $(TOP)/concord/core
 INCLUDE_DIR   = $(TOP)/concord/include
 GENCODECS_DIR = $(TOP)/concord/gencodecs
 
-STD_BOTS   = main
-VOICE_BOTS = 
+OUT_DIR 	  = $(TOP)/bin
 
-BOTS += $(STD_BOTS)
-
-CFLAGS  += -O0 -g -pthread \
+CFLAGS += -pthread \
            -I$(INCLUDE_DIR) -I$(CORE_DIR) -I$(GENCODECS_DIR)
+
 
 CFLAGS += -std=c99 
 CFLAGS += -Wpedantic
 CFLAGS += -Wall
-# CFLAGS += -fsanitize=address
-# CFLAGS += -fsanitize=undefined
-# CFLAGS += -fsanitize=leak
 CFLAGS += -Wextra
 CFLAGS += -Waggregate-return
 CFLAGS += -Wbad-function-cast
@@ -38,23 +32,38 @@ CFLAGS += -Wswitch
 CFLAGS += -Wundef
 CFLAGS += -Wunreachable-code
 CFLAGS += -Wwrite-strings
-
 CFLAGS += -Wno-discarded-qualifiers
 
 LDFLAGS  = -L$(TOP)/concord/lib
 LDLIBS   = -ldiscord -lcurl
 
-all: $(BOTS)
+CFLAGS +=  $(LDFLAGS)
 
-voice:
-	@ CFLAGS=-DCCORD_VOICE BOTS=$(VOICE_BOTS) $(MAKE)
+all: release debug asan
 
-echo:
-	@ echo -e 'CC: $(CC)\n'
-	@ echo -e 'STD_BOTS: $(STD_BOTS)\n'
-	@ echo -e 'VOICE_BOTS: $(VOICE_BOTS)\n'
+release: $(CORE_DIR)
+	$(CC) -O2 $(CFLAGS) \
+	main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
+
+debug: $(CORE_DIR)
+	$(CC) -O0 -g $(CFLAGS) \
+	main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
+
+asan: $(CORE_DIR)
+	$(CC) -O0 -fsanitize=address -fsanitize=undefined -fsanitize=leak \
+	-g $(CFLAGS) main.c $(LDLIBS) -o $(OUT_DIR)/$@ 
+
+
+$(CORE_DIR): outdir
+	git submodule update --init --recursive
+	cd concord && git checkout update/gencodecs \
+			   && make \
+			   && PREFIX=.. make install 
+
+outdir:
+	mkdir -p $(OUT_DIR)
 
 clean:
-	@ rm -f $(STD_BOTS) $(VOICE_BOTS)
+	rm -f $(OUT_DIR)/*
 
-.PHONY: all echo clean
+.PHONY: all clean
