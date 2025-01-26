@@ -9,6 +9,33 @@
 #ifndef COMMAND_YEET
 #define COMMAND_YEET
 
+void
+edit_message_returned_timer_cb(struct discord *client, struct discord_timer *timer)
+{
+    log_debug("edit_message_returned_timer_cb called!");
+    struct yeet_with_users *yww = timer->data;
+
+    char *yeet_msg = arena_calloc(yww->yeet->arena, 2000);
+    cog_asprintf(&yeet_msg, "User <@!%ld> was yeeted in %.2f seconds! They have since returned.\nBrought to you by %s", yww->yeet->victim, (float)yww->yeet->deltatime_ms/1000, yww->users_msg);
+
+    discord_edit_message(client, yww->yeet->m_id.channel, yww->yeet->m_id.message, &(struct discord_edit_message) {
+        .content = yeet_msg,
+    }, NULL);
+
+    free(yeet_msg);
+}
+
+void
+edit_message_done(struct discord *client, struct discord_response *resp, const struct discord_message *ret)
+{
+    log_debug("edit_message_done called!");
+    struct yeet_with_users *yww = resp->data;
+    yww->yeet->m_id.channel = ret->channel_id;
+    yww->yeet->m_id.message = ret->id;
+
+    discord_timer(client, edit_message_returned_timer_cb, NULL, resp->data, YEET_DURATION * 1000);
+}
+
 void 
 yeet_fail(struct discord *client, struct discord_response *resp)
 {
@@ -23,6 +50,8 @@ yeet_fail(struct discord *client, struct discord_response *resp)
     discord_create_message(client, yeet->m_id.channel, &(struct discord_create_message) {
         .content = yeet_msg,
     }, NULL);
+
+    free(yeet_msg);
 }
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -34,14 +63,19 @@ yeet_succ(struct discord *client, struct discord_response *resp, const struct di
     struct yeet *yeet = yww_data->yeet;
 
     u64unix_ms deltaTimeMs = (cog_timestamp_ms() - yeet->timestamp);
+    yeet->deltatime_ms = deltaTimeMs;
     char *yeet_msg = arena_calloc(yeet->arena, 2000); // TODO get an exact size
-    cog_asprintf(&yeet_msg, "User <@!%ld> yeeted in %.2f seconds!\nBrought to you by %s", yeet->victim, (float)deltaTimeMs/1000, yww_data->users_msg);
+    cog_asprintf(&yeet_msg, "User <@!%ld> yeeted in %.2f seconds! They will return in <t:%ld:R>\nBrought to you by %s", yeet->victim, (float)deltaTimeMs/1000, time(NULL) + YEET_DURATION, yww_data->users_msg);
 
     discord_delete_message(client, yeet->m_id.channel, yeet->m_id.message, NULL, NULL);
     discord_create_message(client, yeet->m_id.channel, &(struct discord_create_message) {
         .content = yeet_msg,
-    }, NULL); // TODO: They will return in + callback
-    // TODO: Edit to make it say "they have since returned" or whatever (use a callback in case of failure)
+    }, &(struct discord_ret_message) {
+        .done = edit_message_done,
+        .data = yww_data,
+    });
+
+    free(yeet_msg);
 }
 
 void
@@ -78,6 +112,7 @@ get_users_done(struct discord *client, struct discord_response *resp, const stru
         if (ret->array[i].id == BOT_ID) continue;
         cog_asprintf(&_fstr, "<@!%ld> ", ret->array[i].id);
         strcat(list, _fstr);
+        free(_fstr);
     }
 
     log_debug("g_u_d: list: %s", list);
@@ -106,18 +141,14 @@ murder_message(struct discord *client, struct discord_timer *timer)
     // Delete the message
     struct message_identifier *data = (timer->data);
     // TODO: Only make this call if the yeet hasn't passed
-    discord_delete_message(client, data->channel, data->message, NULL, NULL);
-
-    // At this point, the yeet could either still be pending decision or decided. 
-    // If decided, the pointer will be null and removed from the active_yeets array.
-    // We will use the message id to search and if the search doesn't return -1,
-    // we free the pointer there and set it to NULL.
-    struct yeet *yeet = get_yeet_by_id(client, data->message);
-    if (yeet != NULL) {
-        log_debug("murder_message: freeing arena @ %p\n\t\tfreeing yeet @ %p", yeet->arena, yeet);
-        arena_free(yeet->arena);
-        nullifree_yeet(client, yeet);
-        mod_yeet_count(client, 1);
+    if (discord_delete_message(client, data->channel, data->message, NULL, NULL) == CCORD_OK) {
+        struct yeet *yeet = get_yeet_by_id(client, data->message);
+        if (yeet != NULL) {
+            log_debug("murder_message: freeing arena @ %p\n\t\tfreeing yeet @ %p", yeet->arena, yeet);
+            arena_free(yeet->arena);
+            nullifree_yeet(client, yeet);
+            mod_yeet_count(client, 1);
+        }
     }
 }
 
@@ -140,6 +171,7 @@ init_react_cb_done_get(struct discord *client, struct discord_response *resp, co
     struct message_identifier *p_message_identifier = arena_alloc(yeet->arena, sizeof(struct message_identifier));
     p_message_identifier->channel = ret->channel_id;
     p_message_identifier->message = ret->id;
+    // TODO: Figure out how to use concord's built in cleanup ability for this parameter passing
 
     discord_timer(client, murder_message, NULL, p_message_identifier, YEET_VOTING_SECONDS * 1000);
 }

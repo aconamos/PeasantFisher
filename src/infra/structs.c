@@ -15,6 +15,7 @@ struct message_identifier {
 
 struct yeet {
     struct message_identifier m_id;
+    u64unix_ms deltatime_ms;
     struct Arena *arena;
     u64snowflake author;
     u64snowflake victim;
