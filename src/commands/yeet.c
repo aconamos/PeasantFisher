@@ -23,6 +23,11 @@ edit_message_returned_timer_cb(struct discord *client, struct discord_timer *tim
     }, NULL);
 
     free(yeet_msg);
+
+    struct yeet *yeet = yww->yeet;
+    log_debug("edit_message_returned_timer_cb: freeing arena @ %p\n\t\tfreeing yeet @ %p", yeet->arena, yeet);
+    arena_free(yeet->arena);
+    nullifree_yeet(client, yeet);
 }
 
 void
@@ -140,15 +145,16 @@ murder_message(struct discord *client, struct discord_timer *timer)
 {
     // Delete the message
     struct message_identifier *data = (timer->data);
-    // TODO: Only make this call if the yeet hasn't passed
+    // In a future refactor, it might be structured such that we don't make this call without first checking
+    // that the operation will go through. For now, we need the data.
     if (discord_delete_message(client, data->channel, data->message, NULL, NULL) == CCORD_OK) {
         struct yeet *yeet = get_yeet_by_id(client, data->message);
         if (yeet != NULL) {
             log_debug("murder_message: freeing arena @ %p\n\t\tfreeing yeet @ %p", yeet->arena, yeet);
             arena_free(yeet->arena);
             nullifree_yeet(client, yeet);
-            mod_yeet_count(client, 1);
         }
+        mod_yeet_count(client, 1);
     }
 }
 
