@@ -31,7 +31,7 @@ on_ready(struct discord *client, const struct discord_ready *event)
     discord_create_guild_application_command(client, event->application->id,
                                              GUILD_ID, &params, NULL);
 
-    struct discord_application_command_option options[] = {
+    struct discord_application_command_option yeet_options[] = {
         {
             .type = DISCORD_APPLICATION_OPTION_USER,
             .name = "user",
@@ -45,12 +45,45 @@ on_ready(struct discord *client, const struct discord_ready *event)
         .description = "Yeet someone!",
         .options = 
             &(struct discord_application_command_options) {
-                .size = sizeof(options) / sizeof *options,
-                .array = options,
+                .size = sizeof(yeet_options) / sizeof *yeet_options,
+                .array = yeet_options,
             },
     };
     discord_create_guild_application_command(client, event->application->id,
                                              GUILD_ID, &yeet_params, NULL);
+
+    struct discord_application_command_option abuse_options[] = {
+        {
+            .type = DISCORD_APPLICATION_OPTION_USER,
+            .name = "user",
+            .description = "Who to mod abuse",
+            .required = true
+        },
+        {
+            .type = DISCORD_APPLICATION_OPTION_STRING,
+            .name = "time",
+            .description = "How long to mod abuse for (max is 28d)",
+            .required = true
+        },
+        {
+            .type = DISCORD_APPLICATION_OPTION_STRING,
+            .name = "reason",
+            .description = "Reason for mod abuse",
+            .required = false
+        }
+    };
+
+    struct discord_create_guild_application_command abuse_params = {
+        .name = "mod_abuse",
+        .description = "Shoot someone!",
+        .options = 
+            &(struct discord_application_command_options) {
+                .size = sizeof(abuse_options) / sizeof *abuse_options,
+                .array = abuse_options,
+            },
+    };
+    discord_create_guild_application_command(client, event->application->id,
+                                             GUILD_ID, &abuse_params, NULL);
 }
 
 void 
