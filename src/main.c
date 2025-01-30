@@ -15,6 +15,7 @@
 #include "infra/yeet_array.c"
 
 #include "commands/yeet.c"
+#include "commands/mod_abuse.c"
 
 
 /**
@@ -112,6 +113,10 @@ on_interaction(struct discord *client, const struct discord_interaction *event)
 
     if (strcmp(event->data->name, "yeet") == 0) {
         yeet_cb(client, event);
+    }
+
+    if (strcmp(event->data->name, "mod_abuse") == 0) {
+        abuse_cb(client, event);
     }
 }
 
