@@ -1,0 +1,10 @@
+[package]
+name = "peasant_time"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+humantime = "2.1.0"

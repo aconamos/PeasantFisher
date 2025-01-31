@@ -35,8 +35,8 @@ CFLAGS += -Wunreachable-code
 CFLAGS += -Wwrite-strings
 CFLAGS += -Wno-discarded-qualifiers
 
-LDFLAGS  = -L$(TOP)/concord/lib
-LDLIBS   = -ldiscord -lcurl
+LDFLAGS  = -L$(TOP)/concord/lib -L$(TOP)/peasant_time/target/release
+LDLIBS   = -ldiscord -lcurl -lpeasant_time
 
 CFLAGS +=  $(LDFLAGS)
 
