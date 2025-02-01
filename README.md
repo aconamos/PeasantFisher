@@ -1,16 +1,19 @@
 # PeasantFisher
 Ever thought:
-> "I really like [coravacav's KingFisher](https://github.com/coravacav/uofu-cs-discord-bot) bot in my discord, but it's just too memory-safe."
+> "I really like [coravacav's KingFisher](https://github.com/coravacav/uofu-cs-discord-bot) bot in my discord, but it's just too memory-safe." [^1]
 >
 > "Oh, and I only want one feature from the bot."
+
+[^1]: I may have caved and implemented one function in Rust, because I didn't want to parse strings in C. Sounded lame and boring.
 
 Me too!
 Introducing **PeasantFisher**, a ripoff that implements KingFisher's
 yeet functionality in C99 using [cogmasters/concord](https://github.com/cogmasters/concord).
 
-It has a grand total of two commands:
+It has a grand total of ~~two~~ three! commands:
 1. `/ping` - Pong! (This should probably be removed, but I like it.)
 2. `/yeet <user>` - Start a vote to timeout the given user.
+3. `/mod_abuse <user> <time> (reason)` - Only accessible if you have timeout privileges. Announces that you are timing someone out (as opposed to the default, silent timeout)
 
 ## Installation
 You need the following prerequisites:
