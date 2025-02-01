@@ -80,8 +80,8 @@ void
 abuse_cb(struct discord *client, const struct discord_interaction *event)
 {
     // Extract options
-    u64snowflake victim;
-    char *str_time = NULL, *reason = NULL;
+    u64snowflake victim = 0;
+    char *str_time = NULL, *reason = "no reason ¯\\_(ツ)_/¯";
 
     for (int i = 0; i < event->data->options->size; ++i) {
         char *name = event->data->options->array[i].name;
@@ -94,8 +94,6 @@ abuse_cb(struct discord *client, const struct discord_interaction *event)
         } else if (0 == strcmp(name, "reason")) {
             reason = value;
         }
-
-        if (reason == NULL) reason = "placeholder reason"; // TODO put this at initialization
     }
 
     log_debug("abuse_cb: parameters---\nuser: %ld\ntime: %s\nreason: %s", victim, str_time, reason);
@@ -104,6 +102,12 @@ abuse_cb(struct discord *client, const struct discord_interaction *event)
     log_debug("Acquired rel_time: %ld", time_offset);
 
     // Check for validity of parameters
+    if (victim == 0) {
+        log_error("what the fuck?");
+
+        return;
+    }
+    
     if (time_offset == 0) {
         discord_create_interaction_response(client, event->id, event->token, &(struct discord_interaction_response) {
             .type = DISCORD_INTERACTION_CHANNEL_MESSAGE_WITH_SOURCE,
