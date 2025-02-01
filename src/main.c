@@ -71,12 +71,13 @@ on_ready(struct discord *client, const struct discord_ready *event)
             .name = "reason",
             .description = "Reason for mod abuse",
             .required = false
-        }
+        },
     };
 
     struct discord_create_guild_application_command abuse_params = {
         .name = "mod_abuse",
         .description = "Shoot someone!",
+        .default_member_permissions = DISCORD_PERM_MODERATE_MEMBERS,
         .options = 
             &(struct discord_application_command_options) {
                 .size = sizeof(abuse_options) / sizeof *abuse_options,
