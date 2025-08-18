@@ -3,6 +3,7 @@
 
 #include "../infra/arena.c"
 #include "../project_vars.h"
+#include <string.h>
 
 
 #ifndef COMMAND_ABUSE

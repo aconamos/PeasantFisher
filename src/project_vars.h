@@ -15,8 +15,8 @@
         #define YEET_REGEN_S 20
     #else
         // Production variables go here
-        #define GUILD_ID 849505364764524565
-        #define VOTE_COUNT 3
+        #define GUILD_ID 1217975183554642021
+        #define VOTE_COUNT 4
         #define YEET_VOTING_SECONDS 90
         #define YEET_DURATION 300
         #define MAX_YEETS 3

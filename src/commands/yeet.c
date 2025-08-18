@@ -1,9 +1,12 @@
 #include "discord.h"
+#include "log.h"
 
 #include "../infra/structs.c"
 #include "../infra/arena.c"
 #include "../infra/yeet_array.c"
+#include "../infra/die.c"
 #include "../project_vars.h"
+#include <string.h>
 
 
 #ifndef COMMAND_YEET

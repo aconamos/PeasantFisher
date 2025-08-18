@@ -3,7 +3,10 @@
  * It makes use of log functions available only with the library cogmasters/concord, which can be removed.
  */
 
+#include "log.h"
+
 #include <stdlib.h>
+#include <string.h>
 
 
 #ifndef ARENA
