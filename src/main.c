@@ -25,12 +25,12 @@ void
 on_ready(struct discord *client, const struct discord_ready *event) 
 {
     // This ping command is probably going to stay a while for ensuring slash commands work.
-    struct discord_create_guild_application_command params = {
+    struct discord_create_global_application_command params = {
         .name = "ping",
         .description = "Ping command!"
     };
-    discord_create_guild_application_command(client, event->application->id,
-                                             GUILD_ID, &params, NULL);
+    discord_create_global_application_command(client, event->application->id,
+                                             &params, NULL);
 
     struct discord_application_command_option yeet_options[] = {
         {
@@ -41,7 +41,7 @@ on_ready(struct discord *client, const struct discord_ready *event)
         },
     };
 
-    struct discord_create_guild_application_command yeet_params = {
+    struct discord_create_global_application_command yeet_params = {
         .name = "yeet",
         .description = "Yeet someone!",
         .options = 
@@ -50,8 +50,8 @@ on_ready(struct discord *client, const struct discord_ready *event)
                 .array = yeet_options,
             },
     };
-    discord_create_guild_application_command(client, event->application->id,
-                                             GUILD_ID, &yeet_params, NULL);
+    discord_create_global_application_command(client, event->application->id,
+                                             &yeet_params, NULL);
 
     struct discord_application_command_option abuse_options[] = {
         {
@@ -74,7 +74,7 @@ on_ready(struct discord *client, const struct discord_ready *event)
         },
     };
 
-    struct discord_create_guild_application_command abuse_params = {
+    struct discord_create_global_application_command abuse_params = {
         .name = "mod_abuse",
         .description = "Shoot someone!",
         .default_member_permissions = (u64bitmask) 1 << 40,
@@ -84,8 +84,8 @@ on_ready(struct discord *client, const struct discord_ready *event)
                 .array = abuse_options,
             },
     };
-    discord_create_guild_application_command(client, event->application->id,
-                                             GUILD_ID, &abuse_params, NULL);
+    discord_create_global_application_command(client, event->application->id,
+                                             &abuse_params, NULL);
 }
 
 void 
