@@ -217,8 +217,6 @@ yeet_cb(struct discord *client, const struct discord_interaction *event)
     }
     mod_yeet_count(client, -1);
 
-    event->guild_id;
-
     // Build yeet
     struct yeet **null_yeet_addr = get_first_null(client);
     if (null_yeet_addr == NULL) my_die(client);
