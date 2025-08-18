@@ -130,7 +130,7 @@ get_users_done(struct discord *client, struct discord_response *resp, const stru
     data->users_msg = list;
     data->yeet = yeet;
 
-    discord_modify_guild_member(client, GUILD_ID, target, &(struct discord_modify_guild_member) {
+    discord_modify_guild_member(client, params->g_id, target, &(struct discord_modify_guild_member) {
         .communication_disabled_until = (u64unix_ms)((time(NULL) + YEET_DURATION) * 1000), // This needs an extra *1000 because for some reason discord's timestamps have extra precision. /shrug
     }, &(struct discord_ret_guild_member) {
         .done = yeet_succ,
@@ -217,6 +217,8 @@ yeet_cb(struct discord *client, const struct discord_interaction *event)
     }
     mod_yeet_count(client, -1);
 
+    event->guild_id;
+
     // Build yeet
     struct yeet **null_yeet_addr = get_first_null(client);
     if (null_yeet_addr == NULL) my_die(client);
@@ -285,6 +287,8 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
     no_ret_params->yeet = yeet;
     yes_ret_params->emoji = YES_EMOJI;
     no_ret_params->emoji = NO_EMOJI;
+    yes_ret_params->g_id = event->guild_id;
+    no_ret_params->g_id = event->guild_id;
 
     discord_get_reactions(client, c_id, m_id, 0, YES_EMOJI, NULL, &(struct discord_ret_users) {
         .done = get_users_done,

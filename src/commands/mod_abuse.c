@@ -150,7 +150,7 @@ abuse_cb(struct discord *client, const struct discord_interaction *event)
     info->reason = new_reason;
 
     // Try to modify user
-    discord_modify_guild_member(client, GUILD_ID, victim, &(struct discord_modify_guild_member) {
+    discord_modify_guild_member(client, event->guild_id, victim, &(struct discord_modify_guild_member) {
         .communication_disabled_until = time(NULL) * 1000 + time_offset,
     }, &(struct discord_ret_guild_member) {
         .done = abuse_succ,

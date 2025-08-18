@@ -3,6 +3,7 @@
 #include "discord.h"
 
 #include "arena.c" // TODO better way to do this include 
+#include "types.h"
 
 
 #ifndef STRUCTS
@@ -34,6 +35,7 @@ struct yeet_with_users {
 struct get_reactions_params {
     struct yeet *yeet;
     char *emoji;
+    u64snowflake g_id;
 };
 
 struct instance_data {
