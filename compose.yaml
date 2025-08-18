@@ -1,0 +1,7 @@
+services:
+  peasantfisher:
+    build: .
+    image: peasantfisher:latest
+    restart: always
+    volumes:
+      - ./config.json:/usr/src/peasantfisher/config.json
