@@ -87,7 +87,7 @@ yeet_succ(struct discord *client, struct discord_response *resp, const struct di
 }
 
 void
-get_users_done(struct discord *client, struct discord_response *resp, const struct discord_users *ret) 
+get_reacts_cb(struct discord *client, struct discord_response *resp, const struct discord_users *ret) 
 {
     struct get_reactions_params *params = resp->data;
     char *emoji = params->emoji;
@@ -162,7 +162,8 @@ murder_message(struct discord *client, struct discord_timer *timer)
 }
 
 /**
- * This callback serves to finish constructing yeet data and start the timer to delete it.
+ * This callback serves to finish constructing yeet data and start the timer to delete it,
+ * as well as adding the reactions for people to vote.
  * It is the last call to construct the yeet following the initial reaction from the bot.
  */
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -236,22 +237,21 @@ yeet_cb(struct discord *client, const struct discord_interaction *event)
     , victim_id, VOTE_COUNT, YES_EMOJI, NO_EMOJI, event->member->user->id, time(NULL) + YEET_VOTING_SECONDS);
 
 
-    free_yeet.i_id = event->id;
-    free_yeet.author = event->member->user->id;
-    free_yeet.victim = victim_id;
-    free_yeet.token = arena_calloc(free_yeet.arena, strlen(event->token) + 1);
-    strcpy(free_yeet.token, event->token);
+    free_yeet->i_id = event->id;
+    free_yeet->author = event->member->user->id;
+    free_yeet->victim = victim_id;
+    free_yeet->token = arena_calloc(free_yeet->arena, strlen(event->token) + 1);
+    free_yeet->timestamp = cog_timestamp_ms();
+    strcpy(free_yeet->token, event->token);
 
-    struct discord_interaction_response params = {
+    struct discord_interaction_response response_msg_params = {
         .type = DISCORD_INTERACTION_CHANNEL_MESSAGE_WITH_SOURCE,
         .data = &(struct discord_interaction_callback_data){
             .content = yeet_message,
         }
     };
-    // This goes here for more accurate timekeeping. Of course, it's really only like, 5 clock cycles, but come on.
-    free_yeet.timestamp = cog_timestamp_ms();
     discord_create_interaction_response(client, event->id,
-                                            event->token, &params, &(struct discord_ret_interaction_response) {
+                                            event->token, &response_msg_params, &(struct discord_ret_interaction_response) {
                                             .keep = event,
                                             .done = init_react_cb_done,
                                             .data = 
@@ -278,6 +278,8 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
     // Check to make sure we're not doing yeet things on a non-yeet message
     struct yeet * yeet = chmap_get(idata->yeet_map, &m_id);
     if (yeet == NULL) return;
+
+    log_debug("%s", event->emoji->name);
     
     log_info("EMOJI REACTED: %s", name);
     log_debug("TOKEN %s / MESSAGE_ID %ld", yeet->token, yeet->m_id.message);
@@ -292,12 +294,12 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
     no_ret_params->g_id = event->guild_id;
 
     discord_get_reactions(client, c_id, m_id, 0, YES_EMOJI, NULL, &(struct discord_ret_users) {
-        .done = get_users_done,
+        .done = get_reacts_cb,
         .keep = event,
         .data = yes_ret_params,
     });
     discord_get_reactions(client, c_id, m_id, 0, NO_EMOJI, NULL, &(struct discord_ret_users) {
-        .done = get_users_done,
+        .done = get_reacts_cb,
         .keep = event,
         .data = no_ret_params,
     });

@@ -78,6 +78,7 @@ on_ready(struct discord *client, const struct discord_ready *event)
     struct discord_create_global_application_command abuse_params = {
         .name = "mod_abuse",
         .description = "Shoot someone!",
+        // Ugly sentinel value - 1 << 40 represents admin permissions
         .default_member_permissions = (u64bitmask) 1 << 40,
         .options = 
             &(struct discord_application_command_options) {
