@@ -11,6 +11,8 @@
 #ifndef COMMAND_YEET
 #define COMMAND_YEET
 
+void mod_yeet_count(struct discord * client, int term);
+
 void
 edit_message_returned_timer_cb(struct discord *client, struct discord_timer *timer)
 {
@@ -170,11 +172,14 @@ init_react_cb_done_get(struct discord *client, struct discord_response *resp, co
     discord_create_reaction(client, ret->channel_id, ret->id, 0, YES_EMOJI, NULL);
     discord_create_reaction(client, ret->channel_id, ret->id, 0, NO_EMOJI, NULL);
 
+    struct instance_data * idata = discord_get_data(client);
+
     log_debug("Interaction ID (CB): %ld", ret->interaction->id);
     struct yeet *yeet = get_yeet_by_token(client, ret->interaction->id);
     yeet->m_id.channel = ret->channel_id;
     yeet->m_id.message = ret->id;
-
+    chmap_put(idata->yeet_map, &yeet->m_id.message, yeet);
+    
     struct message_identifier *p_message_identifier = arena_alloc(yeet->arena, sizeof(struct message_identifier));
     p_message_identifier->channel = ret->channel_id;
     p_message_identifier->message = ret->id;
@@ -202,7 +207,7 @@ void
 yeet_cb(struct discord *client, const struct discord_interaction *event)
 {
     log_info("Yeet called!");
-    struct instance_data *instance_data = discord_get_data(client);
+    struct instance_data * instance_data = discord_get_data(client);
     if (instance_data->yeets_cnt <= 0) {
         discord_create_interaction_response(client, event->id, event->token, &(struct discord_interaction_response) {
             .type = DISCORD_INTERACTION_CHANNEL_MESSAGE_WITH_SOURCE,
@@ -216,11 +221,8 @@ yeet_cb(struct discord *client, const struct discord_interaction *event)
     mod_yeet_count(client, -1);
 
     // Build yeet
-    struct yeet **null_yeet_addr = get_first_null(client);
-    if (null_yeet_addr == NULL) my_die(client);
-    struct yeet *free_yeet = malloc(sizeof(struct yeet));
-    *null_yeet_addr = free_yeet;
-    arena_init(&(free_yeet->arena), 16384);
+    struct yeet free_yeet;
+    arena_init(&(free_yeet.arena), 16384);
 
     u64snowflake victim_id = strtoul(event->data->options->array[0].value, NULL, 10);
 
@@ -234,11 +236,11 @@ yeet_cb(struct discord *client, const struct discord_interaction *event)
     , victim_id, VOTE_COUNT, YES_EMOJI, NO_EMOJI, event->member->user->id, time(NULL) + YEET_VOTING_SECONDS);
 
 
-    free_yeet->i_id = event->id;
-    free_yeet->author = event->member->user->id;
-    free_yeet->victim = victim_id;
-    free_yeet->token = arena_calloc(free_yeet->arena, strlen(event->token) + 1);
-    strcpy(free_yeet->token, event->token);
+    free_yeet.i_id = event->id;
+    free_yeet.author = event->member->user->id;
+    free_yeet.victim = victim_id;
+    free_yeet.token = arena_calloc(free_yeet.arena, strlen(event->token) + 1);
+    strcpy(free_yeet.token, event->token);
 
     struct discord_interaction_response params = {
         .type = DISCORD_INTERACTION_CHANNEL_MESSAGE_WITH_SOURCE,
@@ -247,11 +249,12 @@ yeet_cb(struct discord *client, const struct discord_interaction *event)
         }
     };
     // This goes here for more accurate timekeeping. Of course, it's really only like, 5 clock cycles, but come on.
-    free_yeet->timestamp = cog_timestamp_ms();
+    free_yeet.timestamp = cog_timestamp_ms();
     discord_create_interaction_response(client, event->id,
                                             event->token, &params, &(struct discord_ret_interaction_response) {
                                             .keep = event,
                                             .done = init_react_cb_done,
+                                            .data = 
                                             });
     free(yeet_message);
 }
@@ -266,12 +269,14 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
 {
     if (event->member->user->id == BOT_ID) return;
 
+    struct instance_data * idata = discord_get_data(client);
+
     char *name = event->emoji->name;
     u64snowflake m_id = event->message_id;
     u64snowflake c_id = event->channel_id;
     
     // Check to make sure we're not doing yeet things on a non-yeet message
-    struct yeet *yeet = get_yeet_by_id(client, m_id);
+    struct yeet * yeet = chmap_get(idata->yeet_map, &m_id);
     if (yeet == NULL) return;
     
     log_info("EMOJI REACTED: %s", name);
@@ -296,6 +301,11 @@ on_react(struct discord *client, const struct discord_message_reaction_add *even
         .keep = event,
         .data = no_ret_params,
     });
+}
+
+void mod_yeet_count(struct discord * client, int term) {
+    struct instance_data * data = discord_get_data(client);
+    data->yeets_cnt += term;
 }
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
