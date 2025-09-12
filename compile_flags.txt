@@ -1,6 +1,7 @@
 -I./concord/include
 -I./concord/core
 -I./concord/gencodecs
+-I.
 -std=c99
 -Wpedantic
 -Wall

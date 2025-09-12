@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+#include "chmap_onefile.h"
 #include "discord.h"
 #include "log.h"
 
@@ -12,10 +13,10 @@
 #include "infra/structs.c"
 #include "infra/arena.c"
 #include "infra/die.c"
-#include "infra/yeet_array.c"
 
 #include "commands/yeet.c"
 #include "commands/mod_abuse.c"
+#include "types.h"
 
 
 /**
@@ -140,10 +141,8 @@ int main(int argc, char* argv[]) {
     discord_set_on_message_reaction_add(client, &on_react);
 
     // Set up a yeet array and add it to the client data
-    struct yeet **client_yeets = calloc(ACTIVE_YEETS_SIZE, sizeof(struct yeet*));
     struct instance_data *instance_data = malloc(sizeof(struct instance_data));
-    instance_data->active_yeets_size = ACTIVE_YEETS_SIZE;
-    instance_data->active_yeets = client_yeets;
+    instance_data->yeet_map = chmap_new(sizeof(u64snowflake), sizeof(struct yeet));
     instance_data->yeets_cnt = MAX_YEETS;
     discord_set_data(client, instance_data);
 

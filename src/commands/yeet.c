@@ -3,7 +3,6 @@
 
 #include "../infra/structs.c"
 #include "../infra/arena.c"
-#include "../infra/yeet_array.c"
 #include "../infra/die.c"
 #include "../project_vars.h"
 #include <string.h>
@@ -30,7 +29,6 @@ edit_message_returned_timer_cb(struct discord *client, struct discord_timer *tim
     struct yeet *yeet = yww->yeet;
     log_debug("edit_message_returned_timer_cb: freeing arena @ %p\n\t\tfreeing yeet @ %p", yeet->arena, yeet);
     arena_free(yeet->arena);
-    nullifree_yeet(client, yeet);
 }
 
 void

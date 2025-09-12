@@ -1,6 +1,7 @@
 #include <time.h>
 
 #include "discord.h"
+#include "chmap_onefile.h"
 
 #include "arena.c" // TODO better way to do this include 
 #include "types.h"
@@ -39,8 +40,7 @@ struct get_reactions_params {
 };
 
 struct instance_data {
-    struct yeet **active_yeets;
-    int active_yeets_size;
+    struct chmap * yeet_map;
     int yeets_cnt;
 };
 #endif
